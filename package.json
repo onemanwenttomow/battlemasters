@@ -1,0 +1,16 @@
+{
+  "name": "battle-masters",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/game-logic",
+    "packages/client",
+    "packages/server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/client",
+    "build": "npm run build --workspace=packages/game-logic && npm run build --workspace=packages/client",
+    "test": "npm run test --workspace=packages/game-logic",
+    "test:watch": "npm run test:watch --workspace=packages/game-logic"
+  }
+}

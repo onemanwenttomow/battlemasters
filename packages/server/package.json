@@ -1,0 +1,15 @@
+{
+  "name": "@battle-masters/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Server not yet implemented (Phase 2)'"
+  },
+  "dependencies": {
+    "@battle-masters/game-logic": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
