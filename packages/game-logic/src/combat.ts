@@ -1,2 +1,77 @@
-// Combat system — stub for Task 3
-export {};
+import { DieResult, CombatResult, Unit } from './types.js';
+import { getUnitDefinition } from './units.js';
+import { getDefenseModifier, getAttackModifier } from './board.js';
+import type { TerrainType } from './types.js';
+
+// ─── Dice ──────────────────────────────────────────────────────
+
+// Battle Masters dice: 3 skulls, 2 blanks, 1 shield (6 faces)
+const DIE_FACES: DieResult[] = ['skull', 'skull', 'skull', 'blank', 'blank', 'shield'];
+
+/** Roll a single die using the provided RNG */
+export function rollDie(rng: () => number): DieResult {
+  const index = Math.floor(rng() * 6);
+  return DIE_FACES[index];
+}
+
+/** Roll multiple dice */
+export function rollDice(count: number, rng: () => number): DieResult[] {
+  const results: DieResult[] = [];
+  for (let i = 0; i < count; i++) {
+    results.push(rollDie(rng));
+  }
+  return results;
+}
+
+/** Count hits (skulls) in dice results */
+export function countHits(results: DieResult[]): number {
+  return results.filter(r => r === 'skull').length;
+}
+
+/** Count blocks (shields) in dice results */
+export function countBlocks(results: DieResult[]): number {
+  return results.filter(r => r === 'shield').length;
+}
+
+// ─── Combat Resolution ─────────────────────────────────────────
+
+export interface CombatContext {
+  attackerTerrain: TerrainType;
+  defenderTerrain: TerrainType;
+}
+
+/** Resolve combat between two units */
+export function resolveCombat(
+  attacker: Unit,
+  defender: Unit,
+  rng: () => number,
+  context: CombatContext = { attackerTerrain: 'plain', defenderTerrain: 'plain' }
+): CombatResult {
+  const attackerDef = getUnitDefinition(attacker.definitionType);
+  const defenderDef = getUnitDefinition(defender.definitionType);
+
+  // combatValue is used for both attack and defense dice
+  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain));
+  const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain));
+
+  const attackerRolls = rollDice(attackDice, rng);
+  const defenderRolls = rollDice(defenseDice, rng);
+
+  const hits = countHits(attackerRolls);
+  const blocks = countBlocks(defenderRolls);
+  const damage = Math.max(0, hits - blocks);
+
+  const newHp = defender.hp - damage;
+  const unitDestroyed = newHp <= 0;
+
+  return {
+    attackerId: attacker.id,
+    defenderId: defender.id,
+    attackerRolls,
+    defenderRolls,
+    hits,
+    blocks,
+    damage,
+    unitDestroyed,
+  };
+}

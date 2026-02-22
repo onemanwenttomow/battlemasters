@@ -7,18 +7,35 @@ export interface HexCoord {
 
 // ─── Factions ──────────────────────────────────────────────────
 
-export type Faction = 'kingdom' | 'legion';
+export type Faction = 'imperial' | 'chaos';
 
 // ─── Unit Types ────────────────────────────────────────────────
 
-export type KingdomUnitType = 'footsoldier' | 'ranger' | 'cavalry' | 'cannon';
-export type LegionUnitType = 'warrior' | 'skirmisher' | 'beast_rider' | 'brute' | 'warlord';
-export type UnitType = KingdomUnitType | LegionUnitType;
+export type ImperialUnitType =
+  | 'men_at_arms'
+  | 'archer'
+  | 'crossbowman'
+  | 'imperial_knights'
+  | 'lord_knights'
+  | 'mighty_cannon';
+
+export type ChaosUnitType =
+  | 'goblin'
+  | 'beastman'
+  | 'chaos_bowman'
+  | 'orc'
+  | 'chaos_warrior'
+  | 'wolf_rider'
+  | 'champions_of_chaos'
+  | 'ogre_champion';
+
+export type UnitType = ImperialUnitType | ChaosUnitType;
 
 // ─── Terrain ───────────────────────────────────────────────────
 
 export type TerrainType =
   | 'plain'
+  | 'road'
   | 'river'
   | 'ford'
   | 'tower'
@@ -35,10 +52,10 @@ export interface UnitDefinition {
   name: string;
   faction: Faction;
   hp: number;
-  attack: number;
-  defense: number;
+  combatValue: number;
   movement: number;
   range: number;
+  minRange?: number;
   special?: string[];
   spriteKey: string;
 }
@@ -91,7 +108,12 @@ export interface CombatEvent {
 
 // ─── Battle Cards ──────────────────────────────────────────────
 
-export type SpecialCardType = 'ALL_MOVE' | 'CANNON_FIRE' | 'OGRE_RAMPAGE';
+export type SpecialCardType =
+  | 'ALL_MOVE'
+  | 'CANNON_FIRE'
+  | 'OGRE_RAMPAGE'
+  | 'WOLF_RIDER_DOUBLE_MOVE'
+  | 'CHARGE';
 
 export interface BattleCard {
   id: string;
