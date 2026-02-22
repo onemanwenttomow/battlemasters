@@ -5,6 +5,7 @@ import { createBattleDeck, shuffleDeck, createRNG } from './cards.js';
 import { resolveCombat } from './combat.js';
 import { getTile } from './board.js';
 import { validateAction } from './validation.js';
+import { hexDistance } from './hex.js';
 
 // ─── State Creation ────────────────────────────────────────────
 
@@ -144,10 +145,12 @@ function handleAttack(state: GameState, attackerId: string, defenderId: string):
 
   const attackerTerrain = getTile(state.board, attacker.position)?.terrain ?? 'plain';
   const defenderTerrain = getTile(state.board, defender.position)?.terrain ?? 'plain';
+  const distance = hexDistance(attacker.position, defender.position);
 
   const result = resolveCombat(attacker, defender, rng, {
     attackerTerrain,
     defenderTerrain,
+    distance,
   });
 
   // Apply damage

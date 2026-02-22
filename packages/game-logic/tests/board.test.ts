@@ -35,13 +35,13 @@ describe('createDefaultBoard', () => {
     expect(getTile(board, { col: 5, row: 2 })?.terrain).toBe('tower');
   });
 
-  it('has marsh tiles', () => {
+  it('has no marsh tiles in current layout', () => {
     const marshTiles = [...board.tiles.values()].filter(t => t.terrain === 'marsh');
-    expect(marshTiles.length).toBe(2);
+    expect(marshTiles.length).toBe(0);
   });
 
-  it('has a ditch at col 6, row 5', () => {
-    expect(getTile(board, { col: 6, row: 5 })?.terrain).toBe('ditch');
+  it('col 6, row 5 is plain in current layout', () => {
+    expect(getTile(board, { col: 6, row: 5 })?.terrain).toBe('plain');
   });
 });
 

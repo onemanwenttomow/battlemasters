@@ -1,6 +1,6 @@
 import { GameState, GameAction, Unit, HexCoord, coordToKey } from './types.js';
 import { getUnitDefinition } from './units.js';
-import { hexDistance, getReachableHexes, lineOfSight, getNeighbors } from './hex.js';
+import { hexDistance, getReachableHexes, getNeighbors } from './hex.js';
 import { getTile } from './board.js';
 
 export interface ValidationResult {
@@ -160,24 +160,31 @@ function validateAttack(state: GameState, attackerId: string, defenderId: string
   const def = getUnitDefinition(attacker.definitionType);
   const distance = hexDistance(attacker.position, defender.position);
 
-  if (distance > def.range) {
-    return { valid: false, reason: 'Target out of range' };
-  }
-
-  // Enforce minimum range (archers/crossbowmen can't attack adjacent)
-  if (def.minRange && distance < def.minRange) {
-    return { valid: false, reason: 'Target too close (minimum range not met)' };
-  }
-
   // move_or_attack restriction (ranged units and cannon)
   if (def.special?.includes('move_or_attack') && attacker.hasMoved) {
     return { valid: false, reason: 'This unit cannot attack after moving' };
   }
 
-  // Ranged attacks need line of sight
-  if (def.range > 1 && distance > 1) {
-    if (!lineOfSight(attacker.position, defender.position, state.board)) {
-      return { valid: false, reason: 'No line of sight to target' };
+  const isRanged = def.special?.includes('ranged');
+
+  if (isRanged && distance > 1) {
+    // Ranged attack at distance — check range
+    if (distance > def.range) {
+      return { valid: false, reason: 'Target out of range' };
+    }
+
+    // Ranged units engaged in hand-to-hand (adjacent enemy) can't fire at distant targets
+    // Exception: units inside the tower
+    const attackerTile = getTile(state.board, attacker.position);
+    const inTower = attackerTile?.terrain === 'tower';
+
+    if (!inTower && isEngagedInMelee(state, attacker)) {
+      return { valid: false, reason: 'Cannot fire ranged attack while engaged in hand-to-hand combat' };
+    }
+  } else {
+    // Melee attack (or ranged unit attacking adjacent = hand-to-hand)
+    if (distance > 1) {
+      return { valid: false, reason: 'Target out of range' };
     }
   }
 
@@ -199,6 +206,17 @@ function validatePass(state: GameState): ValidationResult {
 }
 
 // ─── Helper ────────────────────────────────────────────────────
+
+/** Check if a unit has an adjacent enemy (engaged in hand-to-hand combat) */
+export function isEngagedInMelee(state: GameState, unit: Unit): boolean {
+  for (const [, other] of state.units) {
+    if (other.faction === unit.faction) continue;
+    if (hexDistance(unit.position, other.position) === 1) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** Get set of hex keys occupied by other units */
 function getOccupiedHexes(state: GameState, excludeUnitId?: string): Set<string> {
@@ -244,16 +262,27 @@ export function getValidAttackTargets(state: GameState, unitId: string): string[
   // move_or_attack check
   if (def.special?.includes('move_or_attack') && unit.hasMoved) return [];
 
+  const isRanged = def.special?.includes('ranged');
+
+  // Check if ranged unit is engaged in melee (can only attack adjacent unless in tower)
+  const attackerTile = getTile(state.board, unit.position);
+  const inTower = attackerTile?.terrain === 'tower';
+  const engaged = isRanged && !inTower && isEngagedInMelee(state, unit);
+
   const targets: string[] = [];
   for (const [id, other] of state.units) {
     if (other.faction === unit.faction) continue;
     const distance = hexDistance(unit.position, other.position);
-    if (distance > def.range) continue;
-    // Enforce minimum range
-    if (def.minRange && distance < def.minRange) continue;
-    if (def.range > 1 && distance > 1) {
-      if (!lineOfSight(unit.position, other.position, state.board)) continue;
+
+    if (isRanged && distance > 1) {
+      // Ranged fire: must be in range and not engaged
+      if (distance > def.range) continue;
+      if (engaged) continue;
+    } else {
+      // Melee: must be adjacent
+      if (distance > 1) continue;
     }
+
     targets.push(id);
   }
 

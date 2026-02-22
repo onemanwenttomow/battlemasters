@@ -223,22 +223,11 @@ function cubeLineDraw(a: CubeCoord, b: CubeCoord): CubeCoord[] {
   return results;
 }
 
-/** Check line of sight between two hexes (blocked by tower, forest) */
-export function lineOfSight(from: HexCoord, to: HexCoord, board: BoardState): boolean {
-  const fromCube = offsetToCube(from);
-  const toCube = offsetToCube(to);
-  const line = cubeLineDraw(fromCube, toCube);
-
-  // Check intermediate hexes (skip start and end)
-  for (let i = 1; i < line.length - 1; i++) {
-    const offset = cubeToOffset(line[i]);
-    const key = coordToKey(offset);
-    const tile = board.tiles.get(key);
-
-    if (tile && (tile.terrain === 'tower' || tile.terrain === 'forest')) {
-      return false;
-    }
-  }
-
+/**
+ * Check line of sight between two hexes.
+ * Per Battle Masters rules, archers/crossbowmen can shoot over friendly units,
+ * terrain features, and even the Tower. Nothing blocks ranged fire.
+ */
+export function lineOfSight(_from: HexCoord, _to: HexCoord, _board: BoardState): boolean {
   return true;
 }

@@ -21,8 +21,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     hp: 3,
     combatValue: 3,
     movement: 1,
-    range: 3,
-    minRange: 2,
+    range: 2,
     special: ['ranged', 'move_or_attack'],
     spriteKey: 'imperial_archer',
   },
@@ -33,8 +32,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     hp: 3,
     combatValue: 3,
     movement: 1,
-    range: 4,
-    minRange: 2,
+    range: 3,
     special: ['ranged', 'move_or_attack'],
     spriteKey: 'imperial_crossbowman',
   },
@@ -100,8 +98,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     hp: 3,
     combatValue: 2,
     movement: 1,
-    range: 3,
-    minRange: 2,
+    range: 2,
     special: ['ranged', 'move_or_attack'],
     spriteKey: 'chaos_bowman',
   },
@@ -194,69 +191,69 @@ export interface ArmySetup {
   units: { type: UnitType; position: HexCoord }[];
 }
 
-/** Default Imperial Army positions (top of board, rows 0-1) — 11 units */
+/** Default Imperial Army positions (rows 4-5, below river) — 11 units */
 export function getDefaultImperialArmy(): ArmySetup {
   return {
     units: [
       // Men at Arms (3) — front line
-      { type: 'men_at_arms', position: { col: 5, row: 1 } },
-      { type: 'men_at_arms', position: { col: 7, row: 1 } },
-      { type: 'men_at_arms', position: { col: 9, row: 1 } },
+      { type: 'men_at_arms', position: { col: 5, row: 5 } },
+      { type: 'men_at_arms', position: { col: 7, row: 5 } },
+      { type: 'men_at_arms', position: { col: 9, row: 5 } },
 
       // Archers (2) — behind front line
-      { type: 'archer', position: { col: 6, row: 0 } },
-      { type: 'archer', position: { col: 8, row: 0 } },
+      { type: 'archer', position: { col: 6, row: 4 } },
+      { type: 'archer', position: { col: 8, row: 4 } },
 
       // Crossbowman (1)
-      { type: 'crossbowman', position: { col: 7, row: 0 } },
+      { type: 'crossbowman', position: { col: 7, row: 4 } },
 
       // Imperial Knights (3) — flanks and center
-      { type: 'imperial_knights', position: { col: 3, row: 1 } },
-      { type: 'imperial_knights', position: { col: 11, row: 1 } },
-      { type: 'imperial_knights', position: { col: 4, row: 0 } },
+      { type: 'imperial_knights', position: { col: 3, row: 5 } },
+      { type: 'imperial_knights', position: { col: 11, row: 5 } },
+      { type: 'imperial_knights', position: { col: 4, row: 4 } },
 
       // Lord Knights (1)
-      { type: 'lord_knights', position: { col: 10, row: 0 } },
+      { type: 'lord_knights', position: { col: 10, row: 4 } },
 
       // Mighty Cannon (1) — rear center
-      { type: 'mighty_cannon', position: { col: 5, row: 0 } },
+      { type: 'mighty_cannon', position: { col: 5, row: 4 } },
     ],
   };
 }
 
-/** Default Chaos Army positions (bottom of board, rows 10-11) — 14 units */
+/** Default Chaos Army positions (rows 6-7) — 14 units */
 export function getDefaultChaosArmy(): ArmySetup {
   return {
     units: [
       // Goblins (2) — front
-      { type: 'goblin', position: { col: 4, row: 10 } },
-      { type: 'goblin', position: { col: 10, row: 10 } },
+      { type: 'goblin', position: { col: 4, row: 6 } },
+      { type: 'goblin', position: { col: 10, row: 6 } },
 
       // Beastmen (2) — front
-      { type: 'beastman', position: { col: 6, row: 10 } },
-      { type: 'beastman', position: { col: 8, row: 10 } },
+      { type: 'beastman', position: { col: 6, row: 6 } },
+      { type: 'beastman', position: { col: 8, row: 6 } },
 
       // Chaos Bowmen (2) — rear
-      { type: 'chaos_bowman', position: { col: 6, row: 11 } },
-      { type: 'chaos_bowman', position: { col: 8, row: 11 } },
+      { type: 'chaos_bowman', position: { col: 6, row: 7 } },
+      { type: 'chaos_bowman', position: { col: 8, row: 7 } },
 
       // Orcs (2) — front center
-      { type: 'orc', position: { col: 5, row: 10 } },
-      { type: 'orc', position: { col: 9, row: 10 } },
+      { type: 'orc', position: { col: 5, row: 6 } },
+      { type: 'orc', position: { col: 9, row: 6 } },
 
       // Chaos Warriors (2) — center
-      { type: 'chaos_warrior', position: { col: 7, row: 10 } },
-      { type: 'chaos_warrior', position: { col: 7, row: 11 } },
+      { type: 'chaos_warrior', position: { col: 7, row: 6 } },
+      { type: 'chaos_warrior', position: { col: 7, row: 7 } },
 
       // Wolf Riders (2) — flanks
-      { type: 'wolf_rider', position: { col: 3, row: 11 } },
-      { type: 'wolf_rider', position: { col: 11, row: 11 } },
+      { type: 'wolf_rider', position: { col: 3, row: 7 } },
+      { type: 'wolf_rider', position: { col: 11, row: 7 } },
 
       // Champions of Chaos (1)
-      { type: 'champions_of_chaos', position: { col: 9, row: 11 } },
+      { type: 'champions_of_chaos', position: { col: 9, row: 7 } },
 
       // Ogre Champion (1)
-      { type: 'ogre_champion', position: { col: 5, row: 11 } },
+      { type: 'ogre_champion', position: { col: 5, row: 7 } },
     ],
   };
 }

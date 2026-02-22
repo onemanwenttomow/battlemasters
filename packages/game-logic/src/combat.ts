@@ -38,6 +38,7 @@ export function countBlocks(results: DieResult[]): number {
 export interface CombatContext {
   attackerTerrain: TerrainType;
   defenderTerrain: TerrainType;
+  distance: number;
 }
 
 /** Resolve combat between two units */
@@ -45,14 +46,20 @@ export function resolveCombat(
   attacker: Unit,
   defender: Unit,
   rng: () => number,
-  context: CombatContext = { attackerTerrain: 'plain', defenderTerrain: 'plain' }
+  context: CombatContext = { attackerTerrain: 'plain', defenderTerrain: 'plain', distance: 1 }
 ): CombatResult {
   const attackerDef = getUnitDefinition(attacker.definitionType);
   const defenderDef = getUnitDefinition(defender.definitionType);
 
+  const isHandToHand = context.distance === 1;
+
+  // Hand-to-hand penalty: ranged units roll 1 fewer die when fighting adjacent
+  const attackerMeleeModifier = (isHandToHand && attackerDef.special?.includes('ranged')) ? -1 : 0;
+  const defenderMeleeModifier = (isHandToHand && defenderDef.special?.includes('ranged')) ? -1 : 0;
+
   // combatValue is used for both attack and defense dice
-  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain));
-  const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain));
+  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + attackerMeleeModifier);
+  const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier);
 
   const attackerRolls = rollDice(attackDice, rng);
   const defenderRolls = rollDice(defenseDice, rng);

@@ -190,12 +190,12 @@ describe('lineOfSight', () => {
     expect(lineOfSight({ col: 5, row: 3 }, { col: 6, row: 3 }, board)).toBe(true);
   });
 
-  it('LOS is blocked by tower', () => {
+  it('LOS is never blocked (ranged units shoot over everything per rules)', () => {
     const board = createDefaultBoard();
-    // Tower is at 5,2 — shoot through it
+    // Tower is at 5,2 — but ranged fire goes over it
     const from = { col: 3, row: 2 };
     const to = { col: 7, row: 2 };
-    expect(lineOfSight(from, to, board)).toBe(false);
+    expect(lineOfSight(from, to, board)).toBe(true);
   });
 
   it('clear LOS across open terrain', () => {
