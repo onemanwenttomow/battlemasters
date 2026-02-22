@@ -29,7 +29,6 @@ export class Highlights {
 
   /** Show movement highlights on given hexes */
   showMoveHighlights(hexes: HexCoord[]) {
-    this.clear();
     for (const hex of hexes) {
       this.addHighlight(hex, 'move');
     }

@@ -32,23 +32,18 @@ export function UnitPanel() {
         {def.name}
       </div>
 
-      {/* HP bar */}
+      {/* HP / Damage */}
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 2 }}>HP</div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {Array.from({ length: unit.maxHp }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                background: i < unit.hp ? '#44cc44' : '#333',
-                border: '1px solid #666',
-              }}
-            />
-          ))}
+        <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 2 }}>
+          HP {unit.hp}/{unit.maxHp}
         </div>
+        {unit.maxHp - unit.hp > 0 && (
+          <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {Array.from({ length: unit.maxHp - unit.hp }, (_, i) => (
+              <span key={i} style={{ fontSize: '1rem', lineHeight: 1 }}>💀</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Stats */}

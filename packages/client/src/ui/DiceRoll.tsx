@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 
@@ -14,23 +13,21 @@ const DIE_SYMBOLS = {
   blank: '\u25CB',
 };
 
-export function DiceRoll() {
+export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   const state = useGameStore((s) => s.state);
   const showDiceRoll = useUIStore((s) => s.showDiceRoll);
   const lastCombatResultIndex = useUIStore((s) => s.lastCombatResultIndex);
   const hideDice = useUIStore((s) => s.hideDice);
 
-  useEffect(() => {
-    if (showDiceRoll) {
-      const timer = setTimeout(hideDice, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showDiceRoll, hideDice]);
-
   if (!showDiceRoll || !state || lastCombatResultIndex === null) return null;
 
   const event = state.combatLog[lastCombatResultIndex];
   if (!event) return null;
+
+  const handleDismiss = () => {
+    onDismiss?.();
+    hideDice();
+  };
 
   return (
     <div style={{
@@ -45,7 +42,9 @@ export function DiceRoll() {
       textAlign: 'center',
       animation: 'fadeIn 0.2s ease-out',
       pointerEvents: 'auto',
-    }} onClick={hideDice}>
+      cursor: 'pointer',
+      zIndex: 101,
+    }} onClick={handleDismiss}>
       <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 8 }}>Combat Result</div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 12 }}>
@@ -75,6 +74,10 @@ export function DiceRoll() {
         {event.result.damage > 0
           ? `${event.result.damage} Damage${event.result.unitDestroyed ? ' - Destroyed!' : ''}`
           : 'Blocked!'}
+      </div>
+
+      <div style={{ fontSize: '0.65rem', color: '#555', marginTop: 8 }}>
+        Click to dismiss
       </div>
     </div>
   );

@@ -9,8 +9,7 @@ import { Effects } from '../engine/Effects';
 import { AssetLoader } from '../engine/AssetLoader';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
-import { getValidMoveTargets, getValidAttackTargets, getUnitDefinition } from '@battle-masters/game-logic';
-import { hexToWorld } from '@battle-masters/game-logic';
+import { getValidMoveTargets, getValidAttackTargets } from '@battle-masters/game-logic';
 
 export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | null>) {
   const engineRef = useRef<{
@@ -88,28 +87,14 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
               ) {
                 dispatch({ type: 'SELECT_UNIT', unitId: event.unitId });
               }
-              // If clicking enemy unit while a unit is selected → attack
+              // If clicking enemy unit while a unit is selected → show combat dialog
               else if (
                 state.selectedUnitId &&
                 unit.faction !== state.currentCard.faction
               ) {
                 const targets = getValidAttackTargets(state, state.selectedUnitId);
                 if (targets.includes(event.unitId)) {
-                  const prevLogLen = state.combatLog.length;
-                  dispatch({
-                    type: 'ATTACK',
-                    attackerId: state.selectedUnitId,
-                    defenderId: event.unitId,
-                  });
-                  // Show effects
-                  effects.spawnHitEffect(unit.position);
-                  const nextState = useGameStore.getState().state;
-                  if (nextState && !nextState.units.has(event.unitId)) {
-                    effects.spawnDeathEffect(unit.position);
-                  }
-                  if (nextState) {
-                    useUIStore.getState().showDice(nextState.combatLog.length - 1);
-                  }
+                  useUIStore.getState().setPendingAttack(state.selectedUnitId, event.unitId);
                 }
               }
             }
@@ -143,16 +128,40 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         lastTime = now;
 
         const state = useGameStore.getState().state;
-        hexBoard.setShowCoords(useUIStore.getState().showCoords);
+        const uiState = useUIStore.getState();
+        hexBoard.setShowCoords(uiState.showCoords);
         if (state) {
-          unitRenderer.syncUnits(state.units, state.selectedUnitId);
+          // Preserve destroyed unit meshes while dice roll is showing
+          let preserveIds: Set<string> | undefined;
+          if (uiState.showDiceRoll && uiState.combatEffectInfo?.destroyedUnitId) {
+            preserveIds = new Set([uiState.combatEffectInfo.destroyedUnitId]);
+          }
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
           highlights.clear();
           if (state.currentPhase === 'activation' && state.currentCard) {
+            // Always highlight tiles of units that can still act
+            const activatableHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+            for (const [id, unit] of state.units) {
+              if (unit.faction !== state.currentCard.faction) continue;
+              if (!state.currentCard.unitTypes.includes(unit.definitionType)) continue;
+              if (unit.hasActivated) continue;
+              if (state.activatedUnitIds.includes(id)) continue;
+              // Skip units that have no actions left
+              if (unit.hasMoved || unit.hasAttacked) continue;
+              activatableHexes.push(unit.position);
+            }
+            highlights.showActivatableHighlights(activatableHexes);
+
             if (state.selectedUnitId) {
-              // Show move/attack targets for selected unit
+              // Highlight the selected unit's tile only if it can still act
+              const selectedUnit = state.units.get(state.selectedUnitId);
+              if (selectedUnit && !selectedUnit.hasMoved && !selectedUnit.hasAttacked) {
+                highlights.showSelectedHighlight(selectedUnit.position);
+              }
+              // Show move/attack targets
               const moves = getValidMoveTargets(state, state.selectedUnitId);
               highlights.showMoveHighlights(moves);
 
@@ -161,17 +170,6 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 .map((id) => state.units.get(id)?.position)
                 .filter((p): p is import('@battle-masters/game-logic').HexCoord => !!p);
               highlights.showAttackHighlights(attackHexes);
-            } else {
-              // Highlight all units that can still be activated for this card
-              const activatableHexes: import('@battle-masters/game-logic').HexCoord[] = [];
-              for (const [id, unit] of state.units) {
-                if (unit.faction !== state.currentCard.faction) continue;
-                if (!state.currentCard.unitTypes.includes(unit.definitionType)) continue;
-                if (unit.hasActivated) continue;
-                if (state.activatedUnitIds.includes(id)) continue;
-                activatableHexes.push(unit.position);
-              }
-              highlights.showActivatableHighlights(activatableHexes);
             }
           }
 

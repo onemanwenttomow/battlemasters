@@ -32,6 +32,7 @@ interface UnitMeshGroup {
   unitId: string;
   targetX: number;
   targetZ: number;
+  lastHp: number;
 }
 
 export class UnitRenderer {
@@ -55,12 +56,12 @@ export class UnitRenderer {
   }
 
   /** Sync rendered units with game state */
-  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null) {
+  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>) {
     const currentIds = new Set(units.keys());
 
-    // Remove units no longer in state
+    // Remove units no longer in state (unless preserved for pending effects)
     for (const [id, meshGroup] of this.unitMeshes) {
-      if (!currentIds.has(id)) {
+      if (!currentIds.has(id) && !preserveIds?.has(id)) {
         this.removeUnitMesh(id);
       }
     }
@@ -114,7 +115,7 @@ export class UnitRenderer {
     group.position.set(pos.x, this.baseHeight, pos.z);
 
     this.parentGroup.add(group);
-    this.unitMeshes.set(unit.id, { group, standee, base, unitId: unit.id, targetX: pos.x, targetZ: pos.z });
+    this.unitMeshes.set(unit.id, { group, standee, base, unitId: unit.id, targetX: pos.x, targetZ: pos.z, lastHp: unit.hp });
   }
 
   private createPlaceholderTexture(unit: Unit, name: string): THREE.CanvasTexture {
@@ -144,18 +145,18 @@ export class UnitRenderer {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(name, 64, 110);
 
-    // HP pips
-    const pipSize = 8;
-    const pipSpacing = 12;
-    const startX = 64 - ((unit.maxHp - 1) * pipSpacing) / 2;
-    for (let i = 0; i < unit.maxHp; i++) {
-      ctx.beginPath();
-      ctx.arc(startX + i * pipSpacing, 145, pipSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = i < unit.hp ? '#44ff44' : '#333333';
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+    // Damage skulls
+    const damageTaken = unit.maxHp - unit.hp;
+    if (damageTaken > 0) {
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      const skulls = '💀'.repeat(damageTaken);
+      ctx.fillText(skulls, 64, 148);
+    } else {
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#44ff44';
+      ctx.textAlign = 'center';
+      ctx.fillText(`HP ${unit.hp}/${unit.maxHp}`, 64, 148);
     }
 
     // Stats
@@ -177,18 +178,22 @@ export class UnitRenderer {
     meshGroup.targetX = pos.x;
     meshGroup.targetZ = pos.z;
 
-    // Selection highlight — bob animation + emissive
-    const baseMat = meshGroup.base.material as THREE.MeshStandardMaterial;
-    if (isSelected) {
-      baseMat.emissive.setHex(0xffcc00);
-      baseMat.emissiveIntensity = 0.5;
-      const bobOffset = Math.sin(Date.now() * 0.005) * 0.05;
-      meshGroup.group.position.y = this.baseHeight + bobOffset;
-    } else {
-      baseMat.emissive.setHex(0x000000);
-      baseMat.emissiveIntensity = 0;
-      meshGroup.group.position.y = this.baseHeight;
+    // Re-render standee texture when HP changes
+    if (unit.hp !== meshGroup.lastHp) {
+      meshGroup.lastHp = unit.hp;
+      const def = getUnitDefinition(unit.definitionType);
+      const newTexture = this.createPlaceholderTexture(unit, def.name);
+      const standeeMat = meshGroup.standee.material as THREE.MeshStandardMaterial;
+      if (standeeMat.map) standeeMat.map.dispose();
+      standeeMat.map = newTexture;
+      standeeMat.needsUpdate = true;
     }
+
+    // Clear any leftover emissive from previous selection
+    const baseMat = meshGroup.base.material as THREE.MeshStandardMaterial;
+    baseMat.emissive.setHex(0x000000);
+    baseMat.emissiveIntensity = 0;
+    meshGroup.group.position.y = this.baseHeight;
   }
 
   /** Animate units sliding toward their target positions */
