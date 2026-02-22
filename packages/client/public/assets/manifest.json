@@ -1,0 +1,53 @@
+{
+  "units": {},
+  "terrain": {
+    "plain": "/assets/terrain/plain.png",
+    "river": "/assets/terrain/river.png",
+    "ford": "/assets/terrain/ford.png",
+    "tower": "/assets/terrain/tower.png",
+    "forest": "/assets/terrain/forest.png",
+    "hill": "/assets/terrain/hill.png",
+    "hedge": "/assets/terrain/hedge.png",
+    "dirt": "/assets/terrain/dirt.png",
+    "castle": "/assets/terrain/castle.png"
+  },
+  "models": {
+    "dirt": "/assets/models/dirt.glb",
+    "grass": "/assets/models/grass.glb",
+    "water": "/assets/models/water.glb",
+    "river_crossing": "/assets/models/river_crossing.glb",
+    "river_straight": "/assets/models/river_straight.glb",
+    "river_corner": "/assets/models/river_corner.glb",
+    "river_cornerSharp": "/assets/models/river_cornerSharp.glb",
+    "stone": "/assets/models/stone.glb",
+    "building_tower": "/assets/models/building_tower.glb",
+    "grass_forest": "/assets/models/grass_forest.glb",
+    "grass_hill": "/assets/models/grass_hill.glb",
+    "path_straight": "/assets/models/path_straight.glb",
+    "path_end": "/assets/models/path_end.glb",
+    "path_corner": "/assets/models/path_corner.glb",
+    "path_cornerSharp": "/assets/models/path_cornerSharp.glb",
+    "path_crossing": "/assets/models/path_crossing.glb",
+    "path_intersection": "/assets/models/path_intersection.glb",
+    "path_intersection2": "/assets/models/path_intersection2.glb",
+    "nature_flower_red1": "/assets/models/nature_flower_red1.gltf",
+    "nature_flower_red2": "/assets/models/nature_flower_red2.gltf",
+    "nature_flower_blue1": "/assets/models/nature_flower_blue1.gltf",
+    "nature_flower_blue2": "/assets/models/nature_flower_blue2.gltf",
+    "nature_flower_beige1": "/assets/models/nature_flower_beige1.gltf",
+    "nature_flower_beige2": "/assets/models/nature_flower_beige2.gltf",
+    "nature_grass": "/assets/models/nature_grass.gltf",
+    "nature_grass_dense": "/assets/models/nature_grass_dense.gltf",
+    "nature_plant_bushSmall": "/assets/models/nature_plant_bushSmall.gltf",
+    "nature_plant_flatSmall": "/assets/models/nature_plant_flatSmall.gltf",
+    "nature_mushroom_red": "/assets/models/nature_mushroom_red.gltf",
+    "nature_mushroom_brown": "/assets/models/nature_mushroom_brown.gltf",
+    "nature_rock_small1": "/assets/models/nature_rock_small1.gltf",
+    "nature_rock_small2": "/assets/models/nature_rock_small2.gltf"
+  },
+  "audio": {
+    "sfx": {},
+    "music": {}
+  },
+  "ui": {}
+}

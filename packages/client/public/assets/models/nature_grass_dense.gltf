@@ -1,0 +1,166 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 448,
+      "type": "VEC3",
+      "max": [
+        0.20449893176555634,
+        0.2540000081062317,
+        0.20394454896450043
+      ],
+      "min": [
+        -0.20449893176555634,
+        0.0,
+        -0.20394454896450043
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 448,
+      "type": "VEC3",
+      "max": [
+        0.9971543550491333,
+        0.9559577107429504,
+        0.9982328414916992
+      ],
+      "min": [
+        -0.9971543550491333,
+        -0.9559577107429504,
+        -0.9982328414916992
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 448,
+      "type": "VEC4",
+      "max": [
+        1.0,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        0.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 448,
+      "type": "VEC2",
+      "max": [
+        8.051138877868652,
+        2.5824203491210938
+      ],
+      "min": [
+        -6.355861186981201,
+        -8.312265396118164
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5123,
+      "count": 672,
+      "type": "SCALAR",
+      "max": [
+        447.0
+      ],
+      "min": [
+        0.0
+      ]
+    }
+  ],
+  "asset": {
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "uri": "nature_grass_dense.bin",
+      "byteLength": 22848
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 5376
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5376,
+      "byteLength": 5376
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 10752,
+      "byteLength": 7168
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 17920,
+      "byteLength": 3584
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21504,
+      "byteLength": 1344
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3529412,
+          0.768627465,
+          0.7137255,
+          1.0
+        ],
+        "metallicFactor": 0.25
+      },
+      "name": "natureKit-leavesGreen"
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3
+          },
+          "indices": 4,
+          "material": 0
+        }
+      ],
+      "name": "grass_dense"
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "translation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "name": "grass_dense"
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ],
+      "name": "grass_dense"
+    }
+  ]
+}
