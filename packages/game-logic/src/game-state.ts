@@ -37,7 +37,6 @@ export function createInitialState(seed?: number): GameState {
 export function applyAction(state: GameState, action: GameAction): GameState {
   const validation = validateAction(state, action);
   if (!validation.valid) {
-    console.warn(`Invalid action: ${validation.reason}`, action);
     return state;
   }
 
