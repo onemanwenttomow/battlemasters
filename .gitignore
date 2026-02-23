@@ -6,3 +6,4 @@ dist/
 .env.*
 /assets/
 rules/
+STL-TO-GLB-GUIDE.md

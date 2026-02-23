@@ -123,6 +123,12 @@ export interface BattleCard {
   special?: SpecialCardType;
 }
 
+// ─── Ogre Sub-Cards ─────────────────────────────────────────────
+
+export interface OgreSubCard {
+  type: 'ogre_move' | 'ogre_attack';
+}
+
 // ─── Game Phases ───────────────────────────────────────────────
 
 export type GamePhase =
@@ -130,6 +136,7 @@ export type GamePhase =
   | 'draw_card'
   | 'activation'
   | 'combat'
+  | 'ogre_rampage'
   | 'game_over';
 
 // ─── Game Actions ──────────────────────────────────────────────
@@ -141,6 +148,8 @@ export type GameAction =
   | { type: 'MOVE_UNIT'; unitId: string; to: HexCoord }
   | { type: 'ATTACK'; attackerId: string; defenderId: string }
   | { type: 'END_ACTIVATION' }
+  | { type: 'DRAW_OGRE_CARD' }
+  | { type: 'END_OGRE_ACTIVATION' }
   | { type: 'PASS' };
 
 // ─── Game State ────────────────────────────────────────────────
@@ -159,6 +168,11 @@ export interface GameState {
   selectedUnitId: string | null;
   activatedUnitIds: string[];
   seed: number;
+  // Ogre Rampage sub-deck state
+  ogreSubDeck: OgreSubCard[];
+  ogreSubCardIndex: number;
+  ogreSubCardsTotal: number;
+  currentOgreSubCard: OgreSubCard | null;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

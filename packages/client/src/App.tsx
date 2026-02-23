@@ -19,7 +19,9 @@ function GameScreen() {
     const effectInfo = useUIStore.getState().combatEffectInfo;
     const effects = engineRef.current?.effects;
     if (effectInfo && effects) {
-      effects.spawnHitEffect(effectInfo.defenderPosition);
+      if (effectInfo.damage > 0) {
+        effects.spawnHitEffect(effectInfo.defenderPosition);
+      }
       if (effectInfo.unitDestroyed) {
         effects.spawnDeathEffect(effectInfo.defenderPosition);
       }

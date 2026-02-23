@@ -37,11 +37,15 @@ export function CombatDialog() {
 
     const nextState = useGameStore.getState().state;
     if (nextState) {
+      const lastEvent = nextState.combatLog[nextState.combatLog.length - 1];
       const unitDestroyed = !nextState.units.has(pendingAttack.defenderId);
+      const isCharge = state.currentCard?.special === 'CHARGE';
       showDice(nextState.combatLog.length - 1, {
         defenderPosition: defenderPos,
+        damage: lastEvent?.result.damage ?? 0,
         unitDestroyed,
         destroyedUnitId: unitDestroyed ? pendingAttack.defenderId : null,
+        isCharge,
       });
     }
 

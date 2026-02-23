@@ -1,4 +1,4 @@
-import { BattleCard, Faction, UnitType, SpecialCardType } from './types.js';
+import { BattleCard, Faction, UnitType, SpecialCardType, OgreSubCard } from './types.js';
 
 // ─── Seeded PRNG ───────────────────────────────────────────────
 
@@ -108,6 +108,24 @@ export function shuffleDeck(deck: BattleCard[], rng: () => number): BattleCard[]
 export function drawCard(deck: BattleCard[]): [BattleCard | null, BattleCard[]] {
   if (deck.length === 0) return [null, []];
   return [deck[0], deck.slice(1)];
+}
+
+/** Create the 6-card Ogre sub-deck (3 move + 3 attack), shuffled with seeded RNG */
+export function createOgreSubDeck(rng: () => number): OgreSubCard[] {
+  const deck: OgreSubCard[] = [
+    { type: 'ogre_move' },
+    { type: 'ogre_move' },
+    { type: 'ogre_move' },
+    { type: 'ogre_attack' },
+    { type: 'ogre_attack' },
+    { type: 'ogre_attack' },
+  ];
+  // Fisher-Yates shuffle
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
 }
 
 /** Reshuffle the discard pile into the deck */

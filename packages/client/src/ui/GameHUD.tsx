@@ -69,9 +69,20 @@ export function GameHUD() {
               ? state.currentCard.special.replace('_', ' ')
               : `Activate ${state.currentCard.count}`}
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
-            {state.activatedUnitIds.length} / {Math.min(state.currentCard.count, 99)} activated
-          </div>
+          {state.currentPhase === 'ogre_rampage' ? (
+            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
+              Sub-card {state.ogreSubCardIndex} / {state.ogreSubCardsTotal}
+              {state.currentOgreSubCard && (
+                <span style={{ color: state.currentOgreSubCard.type === 'ogre_move' ? '#4488ff' : '#ff4444', marginLeft: 4 }}>
+                  [{state.currentOgreSubCard.type === 'ogre_move' ? 'MOVE' : 'ATTACK'}]
+                </span>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
+              {state.activatedUnitIds.length} / {Math.min(state.currentCard.count, 99)} activated
+            </div>
+          )}
         </div>
       )}
 
@@ -102,6 +113,23 @@ export function GameHUD() {
             )}
             <button onClick={() => dispatch({ type: 'PASS' })} style={btnStyle('#666')}>
               Pass
+            </button>
+          </>
+        )}
+        {state.currentPhase === 'ogre_rampage' && (
+          <>
+            {state.currentOgreSubCard === null && state.ogreSubCardIndex < state.ogreSubCardsTotal && (
+              <button onClick={() => dispatch({ type: 'DRAW_OGRE_CARD' })} style={btnStyle(factionColor)}>
+                Draw Ogre Card ({state.ogreSubCardIndex + 1}/{state.ogreSubCardsTotal})
+              </button>
+            )}
+            {state.currentOgreSubCard !== null && (
+              <button onClick={() => dispatch({ type: 'END_OGRE_ACTIVATION' })} style={btnStyle('#888')}>
+                Skip
+              </button>
+            )}
+            <button onClick={() => dispatch({ type: 'PASS' })} style={btnStyle('#666')}>
+              End Rampage
             </button>
           </>
         )}

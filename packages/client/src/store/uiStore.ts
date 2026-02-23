@@ -9,8 +9,10 @@ interface PendingAttack {
 
 interface CombatEffectInfo {
   defenderPosition: { col: number; row: number };
+  damage: number;
   unitDestroyed: boolean;
   destroyedUnitId: string | null;
+  isCharge: boolean;
 }
 
 interface UIStore {

@@ -98,12 +98,36 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 }
               }
             }
+
+            // Ogre rampage: clicking enemy while ogre_attack sub-card is active
+            if (
+              state.currentPhase === 'ogre_rampage' &&
+              state.currentOgreSubCard?.type === 'ogre_attack' &&
+              state.selectedUnitId &&
+              unit.faction !== state.activeFaction
+            ) {
+              const targets = getValidAttackTargets(state, state.selectedUnitId);
+              if (targets.includes(event.unitId)) {
+                useUIStore.getState().setPendingAttack(state.selectedUnitId, event.unitId);
+              }
+            }
             break;
           }
 
           case 'hex_click': {
             if (!event.hexCoord || !state.selectedUnitId) break;
             if (state.currentPhase === 'activation') {
+              dispatch({
+                type: 'MOVE_UNIT',
+                unitId: state.selectedUnitId,
+                to: event.hexCoord,
+              });
+            }
+            // Ogre rampage: move on ogre_move sub-card
+            if (
+              state.currentPhase === 'ogre_rampage' &&
+              state.currentOgreSubCard?.type === 'ogre_move'
+            ) {
               dispatch({
                 type: 'MOVE_UNIT',
                 unitId: state.selectedUnitId,
@@ -170,6 +194,26 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 .map((id) => state.units.get(id)?.position)
                 .filter((p): p is import('@battle-masters/game-logic').HexCoord => !!p);
               highlights.showAttackHighlights(attackHexes);
+            }
+          }
+
+          // Ogre rampage highlights
+          if (state.currentPhase === 'ogre_rampage' && state.selectedUnitId) {
+            const ogre = state.units.get(state.selectedUnitId);
+            if (ogre) {
+              highlights.showSelectedHighlight(ogre.position);
+
+              if (state.currentOgreSubCard?.type === 'ogre_move' && !ogre.hasMoved) {
+                const moves = getValidMoveTargets(state, state.selectedUnitId);
+                highlights.showMoveHighlights(moves);
+              }
+              if (state.currentOgreSubCard?.type === 'ogre_attack' && !ogre.hasAttacked) {
+                const attackIds = getValidAttackTargets(state, state.selectedUnitId);
+                const attackHexes = attackIds
+                  .map((id) => state.units.get(id)?.position)
+                  .filter((p): p is import('@battle-masters/game-logic').HexCoord => !!p);
+                highlights.showAttackHighlights(attackHexes);
+              }
             }
           }
 

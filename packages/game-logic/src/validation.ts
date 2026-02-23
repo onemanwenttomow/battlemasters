@@ -23,6 +23,10 @@ export function validateAction(state: GameState, action: GameAction): Validation
       return validateAttack(state, action.attackerId, action.defenderId);
     case 'END_ACTIVATION':
       return validateEndActivation(state);
+    case 'DRAW_OGRE_CARD':
+      return validateDrawOgreCard(state);
+    case 'END_OGRE_ACTIVATION':
+      return validateEndOgreActivation(state);
     case 'PASS':
       return validatePass(state);
     default:
@@ -81,7 +85,11 @@ function validateSelectUnit(state: GameState, unitId: string): ValidationResult 
 }
 
 function validateMoveUnit(state: GameState, unitId: string, to: HexCoord): ValidationResult {
-  if (state.currentPhase !== 'activation') {
+  if (state.currentPhase === 'ogre_rampage') {
+    if (!state.currentOgreSubCard || state.currentOgreSubCard.type !== 'ogre_move') {
+      return { valid: false, reason: 'Current ogre sub-card is not a move card' };
+    }
+  } else if (state.currentPhase !== 'activation') {
     return { valid: false, reason: 'Not in activation phase' };
   }
 
@@ -135,7 +143,11 @@ function validateMoveUnit(state: GameState, unitId: string, to: HexCoord): Valid
 }
 
 function validateAttack(state: GameState, attackerId: string, defenderId: string): ValidationResult {
-  if (state.currentPhase !== 'activation') {
+  if (state.currentPhase === 'ogre_rampage') {
+    if (!state.currentOgreSubCard || state.currentOgreSubCard.type !== 'ogre_attack') {
+      return { valid: false, reason: 'Current ogre sub-card is not an attack card' };
+    }
+  } else if (state.currentPhase !== 'activation') {
     return { valid: false, reason: 'Not in activation phase' };
   }
 
@@ -198,8 +210,31 @@ function validateEndActivation(state: GameState): ValidationResult {
   return { valid: true };
 }
 
+function validateDrawOgreCard(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'ogre_rampage') {
+    return { valid: false, reason: 'Not in ogre rampage phase' };
+  }
+  if (state.currentOgreSubCard !== null) {
+    return { valid: false, reason: 'Current ogre sub-card not yet resolved' };
+  }
+  if (state.ogreSubCardIndex >= state.ogreSubCardsTotal) {
+    return { valid: false, reason: 'No more ogre sub-cards to draw' };
+  }
+  return { valid: true };
+}
+
+function validateEndOgreActivation(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'ogre_rampage') {
+    return { valid: false, reason: 'Not in ogre rampage phase' };
+  }
+  if (state.currentOgreSubCard === null) {
+    return { valid: false, reason: 'No ogre sub-card to end' };
+  }
+  return { valid: true };
+}
+
 function validatePass(state: GameState): ValidationResult {
-  if (state.currentPhase !== 'activation' && state.currentPhase !== 'draw_card') {
+  if (state.currentPhase !== 'activation' && state.currentPhase !== 'draw_card' && state.currentPhase !== 'ogre_rampage') {
     return { valid: false, reason: 'Cannot pass in current phase' };
   }
   return { valid: true };

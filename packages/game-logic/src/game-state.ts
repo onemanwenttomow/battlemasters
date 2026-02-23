@@ -1,7 +1,7 @@
 import { GameState, GameAction, Faction, coordToKey } from './types.js';
 import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter } from './units.js';
-import { createBattleDeck, shuffleDeck, createRNG } from './cards.js';
+import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck } from './cards.js';
 import { resolveCombat } from './combat.js';
 import { getTile } from './board.js';
 import { validateAction } from './validation.js';
@@ -28,6 +28,10 @@ export function createInitialState(seed?: number): GameState {
     selectedUnitId: null,
     activatedUnitIds: [],
     seed: gameSeed,
+    ogreSubDeck: [],
+    ogreSubCardIndex: 0,
+    ogreSubCardsTotal: 0,
+    currentOgreSubCard: null,
   };
 }
 
@@ -53,6 +57,10 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       return handleAttack(state, action.attackerId, action.defenderId);
     case 'END_ACTIVATION':
       return handleEndActivation(state);
+    case 'DRAW_OGRE_CARD':
+      return handleDrawOgreCard(state);
+    case 'END_OGRE_ACTIVATION':
+      return handleEndOgreActivation(state);
     case 'PASS':
       return handlePass(state);
     default:
@@ -114,6 +122,36 @@ function handleDrawCard(state: GameState): GameState {
     unit.hasMoved = false;
   }
 
+  // Check for Ogre Rampage special card
+  if (card.special === 'OGRE_RAMPAGE') {
+    // Find the ogre champion
+    let ogre: import('./types.js').Unit | null = null;
+    for (const [, unit] of newState.units) {
+      if (unit.definitionType === 'ogre_champion') {
+        ogre = unit;
+        break;
+      }
+    }
+
+    if (ogre && ogre.hp > 0) {
+      const ogreSubCardsTotal = ogre.hp; // remaining HP = draws allowed (maxHp is 6)
+      const subDeckRng = createRNG(state.seed + state.turnNumber + 7777);
+      newState.ogreSubDeck = createOgreSubDeck(subDeckRng);
+      newState.ogreSubCardIndex = 0;
+      newState.ogreSubCardsTotal = ogreSubCardsTotal;
+      newState.currentOgreSubCard = null;
+      newState.selectedUnitId = ogre.id;
+      newState.currentPhase = 'ogre_rampage';
+      return newState;
+    }
+    // Ogre is dead — skip this card, discard and go to draw_card
+    newState.discardPile.push(card);
+    newState.currentCard = null;
+    newState.turnNumber++;
+    newState.currentPhase = 'draw_card';
+    return newState;
+  }
+
   newState.currentPhase = 'activation';
 
   return newState;
@@ -146,10 +184,13 @@ function handleAttack(state: GameState, attackerId: string, defenderId: string):
   const defenderTerrain = getTile(state.board, defender.position)?.terrain ?? 'plain';
   const distance = hexDistance(attacker.position, defender.position);
 
+  const chargeBonus = state.currentCard?.special === 'CHARGE' ? 1 : 0;
+
   const result = resolveCombat(attacker, defender, rng, {
     attackerTerrain,
     defenderTerrain,
     distance,
+    chargeBonus,
   });
 
   // Apply damage
@@ -210,8 +251,70 @@ function handleEndActivation(state: GameState): GameState {
   return newState;
 }
 
+function handleDrawOgreCard(state: GameState): GameState {
+  const newState = cloneState(state);
+
+  const subCard = newState.ogreSubDeck[newState.ogreSubCardIndex];
+  newState.currentOgreSubCard = { ...subCard };
+  newState.ogreSubCardIndex++;
+
+  // Find the ogre and reset its move/attack flags for this sub-card
+  for (const [, unit] of newState.units) {
+    if (unit.definitionType === 'ogre_champion') {
+      unit.hasMoved = false;
+      unit.hasAttacked = false;
+      newState.selectedUnitId = unit.id;
+      break;
+    }
+  }
+
+  return newState;
+}
+
+function handleEndOgreActivation(state: GameState): GameState {
+  const newState = cloneState(state);
+  newState.currentOgreSubCard = null;
+
+  // Check if ogre is still alive
+  let ogreAlive = false;
+  for (const [, unit] of newState.units) {
+    if (unit.definitionType === 'ogre_champion') {
+      ogreAlive = true;
+      break;
+    }
+  }
+
+  // If more sub-cards remain and ogre is alive, stay in ogre_rampage
+  if (ogreAlive && newState.ogreSubCardIndex < newState.ogreSubCardsTotal) {
+    return newState;
+  }
+
+  // End the rampage — discard card, advance turn
+  return endOgreRampage(newState);
+}
+
+function endOgreRampage(state: GameState): GameState {
+  if (state.currentCard) {
+    state.discardPile.push(state.currentCard);
+    state.currentCard = null;
+  }
+  state.selectedUnitId = null;
+  state.ogreSubDeck = [];
+  state.ogreSubCardIndex = 0;
+  state.ogreSubCardsTotal = 0;
+  state.currentOgreSubCard = null;
+  state.turnNumber++;
+  state.currentPhase = 'draw_card';
+  return state;
+}
+
 function handlePass(state: GameState): GameState {
   const newState = cloneState(state);
+
+  // If passing during ogre rampage, end it early
+  if (newState.currentPhase === 'ogre_rampage') {
+    return endOgreRampage(newState);
+  }
 
   // If we're passing during activation, end the entire activation
   if (newState.currentCard) {
@@ -275,5 +378,7 @@ function cloneState(state: GameState): GameState {
     combatLog: [...state.combatLog],
     activatedUnitIds: [...state.activatedUnitIds],
     currentCard: state.currentCard ? { ...state.currentCard } : null,
+    ogreSubDeck: state.ogreSubDeck.map(c => ({ ...c })),
+    currentOgreSubCard: state.currentOgreSubCard ? { ...state.currentOgreSubCard } : null,
   };
 }

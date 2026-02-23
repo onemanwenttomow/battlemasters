@@ -17,12 +17,15 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   const state = useGameStore((s) => s.state);
   const showDiceRoll = useUIStore((s) => s.showDiceRoll);
   const lastCombatResultIndex = useUIStore((s) => s.lastCombatResultIndex);
+  const combatEffectInfo = useUIStore((s) => s.combatEffectInfo);
   const hideDice = useUIStore((s) => s.hideDice);
 
   if (!showDiceRoll || !state || lastCombatResultIndex === null) return null;
 
   const event = state.combatLog[lastCombatResultIndex];
   if (!event) return null;
+
+  const isCharge = combatEffectInfo?.isCharge ?? false;
 
   const handleDismiss = () => {
     onDismiss?.();
@@ -52,7 +55,7 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
           <div style={{ fontSize: '0.7rem', color: '#ff8844', marginBottom: 4 }}>Attacker</div>
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
             {event.result.attackerRolls.map((r, i) => (
-              <Die key={i} result={r} />
+              <Die key={i} result={r} isBonus={isCharge && i === event.result.attackerRolls.length - 1} />
             ))}
           </div>
         </div>
@@ -83,21 +86,30 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   );
 }
 
-function Die({ result }: { result: 'skull' | 'shield' | 'blank' }) {
+function Die({ result, isBonus }: { result: 'skull' | 'shield' | 'blank'; isBonus?: boolean }) {
   return (
     <div style={{
       width: 36,
       height: 36,
       borderRadius: 6,
-      background: '#222',
-      border: `2px solid ${DIE_COLORS[result]}`,
+      background: isBonus ? '#2a2200' : '#222',
+      border: `2px solid ${isBonus ? '#ffcc00' : DIE_COLORS[result]}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontSize: '1.2rem',
-      color: DIE_COLORS[result],
+      color: isBonus ? '#ffcc00' : DIE_COLORS[result],
+      boxShadow: isBonus ? '0 0 6px rgba(255, 204, 0, 0.4)' : undefined,
+      position: 'relative' as const,
     }}>
       {DIE_SYMBOLS[result]}
+      {isBonus && <div style={{
+        position: 'absolute',
+        bottom: -14,
+        fontSize: '0.5rem',
+        color: '#ffcc00',
+        whiteSpace: 'nowrap',
+      }}>CHARGE</div>}
     </div>
   );
 }

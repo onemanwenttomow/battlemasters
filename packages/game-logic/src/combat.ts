@@ -39,6 +39,7 @@ export interface CombatContext {
   attackerTerrain: TerrainType;
   defenderTerrain: TerrainType;
   distance: number;
+  chargeBonus?: number;
 }
 
 /** Resolve combat between two units */
@@ -58,7 +59,7 @@ export function resolveCombat(
   const defenderMeleeModifier = (isHandToHand && defenderDef.special?.includes('ranged')) ? -1 : 0;
 
   // combatValue is used for both attack and defense dice
-  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + attackerMeleeModifier);
+  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0));
   const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier);
 
   const attackerRolls = rollDice(attackDice, rng);
