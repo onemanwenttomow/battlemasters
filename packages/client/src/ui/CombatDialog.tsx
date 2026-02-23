@@ -45,6 +45,7 @@ export function CombatDialog() {
         damage: lastEvent?.result.damage ?? 0,
         unitDestroyed,
         destroyedUnitId: unitDestroyed ? pendingAttack.defenderId : null,
+        damagedUnitId: pendingAttack.defenderId,
         isCharge,
       });
     }

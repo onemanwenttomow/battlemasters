@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore';
+import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
 
 const FACTION_COLORS = {
@@ -8,10 +9,11 @@ const FACTION_COLORS = {
 
 export function UnitPanel() {
   const state = useGameStore((s) => s.state);
+  const inspectedUnitId = useUIStore((s) => s.inspectedUnitId);
 
-  if (!state || !state.selectedUnitId) return null;
+  if (!state || !inspectedUnitId) return null;
 
-  const unit = state.units.get(state.selectedUnitId);
+  const unit = state.units.get(inspectedUnitId);
   if (!unit) return null;
 
   const def = getUnitDefinition(unit.definitionType);

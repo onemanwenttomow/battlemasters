@@ -12,6 +12,7 @@ interface CombatEffectInfo {
   damage: number;
   unitDestroyed: boolean;
   destroyedUnitId: string | null;
+  damagedUnitId: string | null;
   isCharge: boolean;
 }
 
@@ -23,8 +24,10 @@ interface UIStore {
   lastCombatResultIndex: number | null;
   pendingAttack: PendingAttack | null;
   combatEffectInfo: CombatEffectInfo | null;
+  inspectedUnitId: string | null;
 
   setScreen: (screen: Screen) => void;
+  setInspectedUnit: (unitId: string | null) => void;
   toggleCombatLog: () => void;
   toggleCoords: () => void;
   showDice: (combatIndex: number, effectInfo: CombatEffectInfo) => void;
@@ -41,8 +44,10 @@ export const useUIStore = create<UIStore>((set) => ({
   lastCombatResultIndex: null,
   pendingAttack: null,
   combatEffectInfo: null,
+  inspectedUnitId: null,
 
   setScreen: (screen) => set({ screen }),
+  setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
   toggleCombatLog: () => set((s) => ({ showCombatLog: !s.showCombatLog })),
   toggleCoords: () => set((s) => ({ showCoords: !s.showCoords })),
   showDice: (combatIndex, effectInfo) => set({ showDiceRoll: true, lastCombatResultIndex: combatIndex, combatEffectInfo: effectInfo }),

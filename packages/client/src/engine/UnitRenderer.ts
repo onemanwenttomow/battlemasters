@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Unit, Faction, UnitType, coordToKey } from '@battle-masters/game-logic';
+import { Unit, Faction, UnitType } from '@battle-masters/game-logic';
 import { getUnitDefinition } from '@battle-masters/game-logic';
 import { hexToWorld } from '@battle-masters/game-logic';
 
@@ -32,16 +32,41 @@ interface UnitMeshGroup {
   unitId: string;
   targetX: number;
   targetZ: number;
-  lastHp: number;
+  skullTokens: THREE.Mesh[];
+  currentSkullCount: number;
+}
+
+// Shared skull texture (created once, reused)
+let sharedSkullTexture: THREE.CanvasTexture | null = null;
+
+function getSkullTexture(): THREE.CanvasTexture {
+  if (sharedSkullTexture) return sharedSkullTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  // Dark red background circle
+  ctx.beginPath();
+  ctx.arc(32, 32, 30, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(60, 10, 10, 0.85)';
+  ctx.fill();
+  ctx.strokeStyle = '#880000';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Skull emoji
+  ctx.font = '32px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('💀', 32, 34);
+  sharedSkullTexture = new THREE.CanvasTexture(canvas);
+  sharedSkullTexture.needsUpdate = true;
+  return sharedSkullTexture;
 }
 
 export class UnitRenderer {
   private unitMeshes: Map<string, UnitMeshGroup> = new Map();
   private parentGroup: THREE.Group;
-  private clock = new THREE.Clock();
-  /** Y offset applied to unit groups so the base cylinder rests on the tile surface.
-   *  The base cylinder center is at local y=0.2, height=0.1, so bottom = local y=0.15.
-   *  We set group.y = tileTopY - 0.15 so the base sits flush on the tile. */
   private baseHeight = 0;
 
   constructor(private scene: THREE.Scene) {
@@ -49,18 +74,17 @@ export class UnitRenderer {
     this.scene.add(this.parentGroup);
   }
 
-  /** Set the Y height of the tile surface so unit bases rest on top */
   setBaseHeight(tileTopY: number) {
-    // Base cylinder bottom is at local y=0.175 within the group (center 0.25, half-height 0.075)
     this.baseHeight = tileTopY - 0.175;
   }
 
-  /** Sync rendered units with game state */
-  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>) {
+  /** Sync rendered units with game state.
+   *  deferDamageForId: if set, skull tokens for this unit won't update (used during dice roll display) */
+  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null) {
     const currentIds = new Set(units.keys());
 
     // Remove units no longer in state (unless preserved for pending effects)
-    for (const [id, meshGroup] of this.unitMeshes) {
+    for (const [id] of this.unitMeshes) {
       if (!currentIds.has(id) && !preserveIds?.has(id)) {
         this.removeUnitMesh(id);
       }
@@ -72,6 +96,11 @@ export class UnitRenderer {
         this.createUnitMesh(unit);
       }
       this.updateUnitMesh(unit, id === selectedUnitId);
+
+      // Sync skull tokens (defer if this unit's damage display is suppressed)
+      if (deferDamageForId !== id) {
+        this.syncSkullTokens(unit);
+      }
     }
   }
 
@@ -91,7 +120,7 @@ export class UnitRenderer {
     base.castShadow = true;
     group.add(base);
 
-    // Standee card (canvas-generated placeholder)
+    // Standee card (simplified: icon + name only)
     const texture = this.createPlaceholderTexture(unit, def.name);
     const standeeMat = new THREE.MeshStandardMaterial({
       map: texture,
@@ -115,7 +144,11 @@ export class UnitRenderer {
     group.position.set(pos.x, this.baseHeight, pos.z);
 
     this.parentGroup.add(group);
-    this.unitMeshes.set(unit.id, { group, standee, base, unitId: unit.id, targetX: pos.x, targetZ: pos.z, lastHp: unit.hp });
+    this.unitMeshes.set(unit.id, {
+      group, standee, base, unitId: unit.id,
+      targetX: pos.x, targetZ: pos.z,
+      skullTokens: [], currentSkullCount: 0,
+    });
   }
 
   private createPlaceholderTexture(unit: Unit, name: string): THREE.CanvasTexture {
@@ -134,40 +167,74 @@ export class UnitRenderer {
     ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, 124, 188);
 
-    // Icon
-    ctx.font = '40px sans-serif';
+    // Icon (vertically centered)
+    ctx.font = '48px sans-serif';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(UNIT_ICONS[unit.definitionType] || '?', 64, 70);
+    ctx.fillText(UNIT_ICONS[unit.definitionType] || '?', 64, 76);
 
-    // Name
+    // Name (below icon, centered)
     ctx.font = 'bold 14px sans-serif';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, 64, 110);
-
-    // Damage skulls
-    const damageTaken = unit.maxHp - unit.hp;
-    if (damageTaken > 0) {
-      ctx.font = '16px sans-serif';
-      ctx.textAlign = 'center';
-      const skulls = '💀'.repeat(damageTaken);
-      ctx.fillText(skulls, 64, 148);
-    } else {
-      ctx.font = '11px sans-serif';
-      ctx.fillStyle = '#44ff44';
-      ctx.textAlign = 'center';
-      ctx.fillText(`HP ${unit.hp}/${unit.maxHp}`, 64, 148);
-    }
-
-    // Stats
-    ctx.font = '11px sans-serif';
-    ctx.fillStyle = '#cccccc';
-    const def = getUnitDefinition(unit.definitionType);
-    ctx.fillText(`CV:${def.combatValue} MOV:${def.movement} RNG:${def.range}`, 64, 175);
+    ctx.fillText(name, 64, 126);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
+  }
+
+  private syncSkullTokens(unit: Unit) {
+    const meshGroup = this.unitMeshes.get(unit.id);
+    if (!meshGroup) return;
+
+    const damageTaken = unit.maxHp - unit.hp;
+    if (damageTaken === meshGroup.currentSkullCount) return;
+
+    // Remove existing skull tokens
+    for (const skull of meshGroup.skullTokens) {
+      meshGroup.group.remove(skull);
+      skull.geometry.dispose();
+      (skull.material as THREE.Material).dispose();
+    }
+    meshGroup.skullTokens = [];
+    meshGroup.currentSkullCount = damageTaken;
+
+    if (damageTaken <= 0) return;
+
+    // Create skull token meshes in a semicircle around the front of the base
+    const radius = 0.38;
+    const skullSize = 0.18;
+    const skullY = 0.42;
+    const texture = getSkullTexture();
+
+    // Spread skulls in an arc from -60° to +60° (front-facing)
+    const arcStart = -Math.PI / 3;
+    const arcEnd = Math.PI / 3;
+
+    for (let i = 0; i < damageTaken; i++) {
+      const angle = damageTaken === 1
+        ? 0
+        : arcStart + (arcEnd - arcStart) * (i / (damageTaken - 1));
+
+      const geo = new THREE.PlaneGeometry(skullSize, skullSize);
+      const mat = new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0.0,
+      });
+      const skull = new THREE.Mesh(geo, mat);
+      skull.position.set(
+        Math.sin(angle) * radius,
+        skullY,
+        Math.cos(angle) * radius,
+      );
+      meshGroup.group.add(skull);
+      meshGroup.skullTokens.push(skull);
+    }
   }
 
   private updateUnitMesh(unit: Unit, isSelected: boolean) {
@@ -178,17 +245,6 @@ export class UnitRenderer {
     meshGroup.targetX = pos.x;
     meshGroup.targetZ = pos.z;
 
-    // Re-render standee texture when HP changes
-    if (unit.hp !== meshGroup.lastHp) {
-      meshGroup.lastHp = unit.hp;
-      const def = getUnitDefinition(unit.definitionType);
-      const newTexture = this.createPlaceholderTexture(unit, def.name);
-      const standeeMat = meshGroup.standee.material as THREE.MeshStandardMaterial;
-      if (standeeMat.map) standeeMat.map.dispose();
-      standeeMat.map = newTexture;
-      standeeMat.needsUpdate = true;
-    }
-
     // Clear any leftover emissive from previous selection
     const baseMat = meshGroup.base.material as THREE.MeshStandardMaterial;
     baseMat.emissive.setHex(0x000000);
@@ -198,7 +254,7 @@ export class UnitRenderer {
 
   /** Animate units sliding toward their target positions */
   update(dt: number) {
-    const speed = 6; // units per second
+    const speed = 6;
     for (const [, mg] of this.unitMeshes) {
       const dx = mg.targetX - mg.group.position.x;
       const dz = mg.targetZ - mg.group.position.z;
@@ -218,6 +274,12 @@ export class UnitRenderer {
     const meshGroup = this.unitMeshes.get(id);
     if (!meshGroup) return;
 
+    // Dispose skull tokens
+    for (const skull of meshGroup.skullTokens) {
+      skull.geometry.dispose();
+      (skull.material as THREE.Material).dispose();
+    }
+
     this.parentGroup.remove(meshGroup.group);
     meshGroup.standee.geometry.dispose();
     (meshGroup.standee.material as THREE.Material).dispose();
@@ -236,6 +298,15 @@ export class UnitRenderer {
       meshGroup.standee.getWorldPosition(worldPos);
       camPos.y = worldPos.y;
       meshGroup.standee.lookAt(camPos);
+
+      // Billboard skull tokens too
+      for (const skull of meshGroup.skullTokens) {
+        const skullWorld = new THREE.Vector3();
+        skull.getWorldPosition(skullWorld);
+        const skullCamPos = camera.position.clone();
+        skullCamPos.y = skullWorld.y;
+        skull.lookAt(skullCamPos);
+      }
     }
   }
 

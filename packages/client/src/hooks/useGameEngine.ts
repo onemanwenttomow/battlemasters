@@ -78,6 +78,8 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             const unit = state.units.get(event.unitId);
             if (!unit) break;
 
+            useUIStore.getState().setInspectedUnit(event.unitId);
+
             if (state.currentPhase === 'activation' && state.currentCard) {
               // If clicking own unit that matches card → select it
               if (
@@ -115,6 +117,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           }
 
           case 'hex_click': {
+            useUIStore.getState().setInspectedUnit(null);
             if (!event.hexCoord || !state.selectedUnitId) break;
             if (state.currentPhase === 'activation') {
               dispatch({
@@ -138,7 +141,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           }
 
           case 'empty_click': {
-            // Deselect
+            useUIStore.getState().setInspectedUnit(null);
             break;
           }
         }
@@ -160,7 +163,10 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           if (uiState.showDiceRoll && uiState.combatEffectInfo?.destroyedUnitId) {
             preserveIds = new Set([uiState.combatEffectInfo.destroyedUnitId]);
           }
-          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds);
+          const deferDamageForId = uiState.showDiceRoll
+            ? uiState.combatEffectInfo?.damagedUnitId ?? null
+            : null;
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
