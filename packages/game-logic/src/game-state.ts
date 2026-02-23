@@ -1,11 +1,11 @@
-import { GameState, GameAction, Faction, coordToKey } from './types.js';
+import { GameState, GameAction, Faction, coordToKey, HexCoord, CannonFireState } from './types.js';
 import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter } from './units.js';
-import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck } from './cards.js';
+import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
 import { resolveCombat } from './combat.js';
 import { getTile } from './board.js';
 import { validateAction } from './validation.js';
-import { hexDistance } from './hex.js';
+import { hexDistance, getShortestPaths } from './hex.js';
 
 // ─── State Creation ────────────────────────────────────────────
 
@@ -32,6 +32,7 @@ export function createInitialState(seed?: number): GameState {
     ogreSubCardIndex: 0,
     ogreSubCardsTotal: 0,
     currentOgreSubCard: null,
+    cannonFireState: null,
   };
 }
 
@@ -61,6 +62,14 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       return handleDrawOgreCard(state);
     case 'END_OGRE_ACTIVATION':
       return handleEndOgreActivation(state);
+    case 'FIRE_CANNON':
+      return handleFireCannon(state, action.targetCoord);
+    case 'SELECT_CANNON_PATH':
+      return handleSelectCannonPath(state, action.path);
+    case 'DRAW_CANNON_TILE':
+      return handleDrawCannonTile(state);
+    case 'END_CANNON_FIRE':
+      return handleEndCannonFire(state);
     case 'PASS':
       return handlePass(state);
     default:
@@ -152,6 +161,30 @@ function handleDrawCard(state: GameState): GameState {
     return newState;
   }
 
+  // Check for Cannon Fire special card
+  if (card.special === 'CANNON_FIRE') {
+    let cannon: import('./types.js').Unit | null = null;
+    for (const [, unit] of newState.units) {
+      if (unit.definitionType === 'mighty_cannon') {
+        cannon = unit;
+        break;
+      }
+    }
+
+    if (cannon && cannon.hp > 0) {
+      newState.selectedUnitId = cannon.id;
+      newState.cannonFireState = null;
+      newState.currentPhase = 'cannon_fire';
+      return newState;
+    }
+    // Cannon is dead — skip this card
+    newState.discardPile.push(card);
+    newState.currentCard = null;
+    newState.turnNumber++;
+    newState.currentPhase = 'draw_card';
+    return newState;
+  }
+
   newState.currentPhase = 'activation';
 
   return newState;
@@ -163,12 +196,17 @@ function handleSelectUnit(state: GameState, unitId: string): GameState {
   return newState;
 }
 
-function handleMoveUnit(state: GameState, unitId: string, to: import('./types.js').HexCoord): GameState {
+function handleMoveUnit(state: GameState, unitId: string, to: HexCoord): GameState {
   const newState = cloneState(state);
   const unit = newState.units.get(unitId)!;
 
   unit.position = { ...to };
   unit.hasMoved = true;
+
+  // If moving during cannon_fire phase, end the turn (move OR fire)
+  if (newState.currentPhase === 'cannon_fire') {
+    return endCannonFireTurn(newState);
+  }
 
   return newState;
 }
@@ -316,6 +354,11 @@ function handlePass(state: GameState): GameState {
     return endOgreRampage(newState);
   }
 
+  // If passing during cannon fire, end the turn
+  if (newState.currentPhase === 'cannon_fire') {
+    return endCannonFireTurn(newState);
+  }
+
   // If we're passing during activation, end the entire activation
   if (newState.currentCard) {
     newState.discardPile.push(newState.currentCard);
@@ -328,6 +371,241 @@ function handlePass(state: GameState): GameState {
   newState.currentPhase = 'draw_card';
 
   return newState;
+}
+
+// ─── Cannon Fire Handlers ──────────────────────────────────────
+
+function handleFireCannon(state: GameState, targetCoord: HexCoord): GameState {
+  const newState = cloneState(state);
+  const cannon = newState.units.get(newState.selectedUnitId!)!;
+  const distance = hexDistance(cannon.position, targetCoord);
+  const rng = createRNG(state.seed + state.turnNumber + 5555);
+  const tileDeck = createCannonTileDeck(rng);
+
+  // Find target unit at coord
+  let targetUnitId: string | null = null;
+  for (const [id, unit] of newState.units) {
+    if (coordToKey(unit.position) === coordToKey(targetCoord)) {
+      targetUnitId = id;
+      break;
+    }
+  }
+
+  if (distance === 1) {
+    // Adjacent shot: auto-destroy target, but check for misfire
+    const cannonFireState: CannonFireState = {
+      cannonUnitId: cannon.id,
+      targetCoord,
+      targetUnitId,
+      tileDeck,
+      tileIndex: 1, // we draw the first tile immediately
+      path: [],
+      placedTiles: [],
+      pathStepIndex: 0,
+      resolved: false,
+      misfire: false,
+      misfireTile: null,
+      targetDestroyed: true,
+      adjacentShot: true,
+    };
+
+    const firstTile = tileDeck[0];
+    cannonFireState.placedTiles.push({ coord: targetCoord, tile: firstTile });
+
+    if (firstTile.type === 'explosion') {
+      // Misfire! Destroy the unit in target hex, then draw one more onto cannon's space
+      cannonFireState.misfire = true;
+      if (targetUnitId) {
+        newState.units.delete(targetUnitId);
+      }
+
+      const misfireTile = tileDeck[1];
+      cannonFireState.tileIndex = 2;
+      cannonFireState.misfireTile = misfireTile;
+      cannonFireState.placedTiles.push({ coord: { ...cannon.position }, tile: misfireTile });
+
+      // Resolve misfire tile on cannon
+      if (misfireTile.type === 'bouncing') {
+        cannon.hp -= 1;
+        if (cannon.hp <= 0) {
+          newState.units.delete(cannon.id);
+        }
+      } else if (misfireTile.type === 'explosion') {
+        newState.units.delete(cannon.id);
+      }
+      // flying = nothing
+
+      cannonFireState.resolved = true;
+    } else {
+      // No misfire — target destroyed
+      if (targetUnitId) {
+        newState.units.delete(targetUnitId);
+      }
+      cannonFireState.resolved = true;
+    }
+
+    newState.cannonFireState = cannonFireState;
+
+    // Check win condition
+    const winner = checkWinCondition(newState);
+    if (winner) {
+      newState.winner = winner;
+      newState.currentPhase = 'game_over';
+    }
+
+    return newState;
+  }
+
+  // Distant shot: calculate paths
+  const paths = getShortestPaths(cannon.position, targetCoord);
+
+  const cannonFireState: CannonFireState = {
+    cannonUnitId: cannon.id,
+    targetCoord,
+    targetUnitId,
+    tileDeck,
+    tileIndex: 0,
+    path: paths.length === 1 ? paths[0] : [], // auto-select if only one path
+    placedTiles: [],
+    pathStepIndex: 0,
+    resolved: false,
+    misfire: false,
+    misfireTile: null,
+    targetDestroyed: false,
+    adjacentShot: false,
+  };
+
+  newState.cannonFireState = cannonFireState;
+  return newState;
+}
+
+function handleSelectCannonPath(state: GameState, path: HexCoord[]): GameState {
+  const newState = cloneState(state);
+  newState.cannonFireState!.path = path.map(c => ({ ...c }));
+  return newState;
+}
+
+function handleDrawCannonTile(state: GameState): GameState {
+  const newState = cloneState(state);
+  const cfs = newState.cannonFireState!;
+
+  const tile = cfs.tileDeck[cfs.tileIndex];
+  cfs.tileIndex++;
+
+  const isFirstTile = cfs.placedTiles.length === 0;
+
+  // Determine the coord for this tile
+  let tileCoord: HexCoord;
+  if (cfs.path.length > 0 && cfs.pathStepIndex < cfs.path.length) {
+    tileCoord = cfs.path[cfs.pathStepIndex];
+  } else {
+    // We've traversed all intermediate steps — this tile goes on the target
+    tileCoord = cfs.targetCoord;
+  }
+
+  cfs.placedTiles.push({ coord: { ...tileCoord }, tile: { ...tile } });
+
+  if (isFirstTile && tile.type === 'explosion') {
+    // MISFIRE: explosion on first tile
+    cfs.misfire = true;
+
+    // Destroy unit in the first path hex (if any)
+    for (const [id, unit] of newState.units) {
+      if (coordToKey(unit.position) === coordToKey(tileCoord)) {
+        newState.units.delete(id);
+        break;
+      }
+    }
+
+    // Draw one more tile onto cannon's space
+    const cannon = newState.units.get(cfs.cannonUnitId);
+    const misfireTile = cfs.tileDeck[cfs.tileIndex];
+    cfs.tileIndex++;
+    cfs.misfireTile = { ...misfireTile };
+    const cannonCoord = cannon ? { ...cannon.position } : { col: 0, row: 0 };
+    cfs.placedTiles.push({ coord: cannonCoord, tile: { ...misfireTile } });
+
+    if (cannon) {
+      if (misfireTile.type === 'bouncing') {
+        cannon.hp -= 1;
+        if (cannon.hp <= 0) {
+          newState.units.delete(cfs.cannonUnitId);
+        }
+      } else if (misfireTile.type === 'explosion') {
+        newState.units.delete(cfs.cannonUnitId);
+      }
+    }
+
+    cfs.resolved = true;
+  } else if (tile.type === 'explosion') {
+    // Destroy unit in this hex
+    for (const [id, unit] of newState.units) {
+      if (coordToKey(unit.position) === coordToKey(tileCoord)) {
+        newState.units.delete(id);
+        break;
+      }
+    }
+    cfs.resolved = true;
+  } else if (tile.type === 'bouncing') {
+    // 1 damage to any unit in that hex
+    for (const [id, unit] of newState.units) {
+      if (coordToKey(unit.position) === coordToKey(tileCoord)) {
+        unit.hp -= 1;
+        if (unit.hp <= 0) {
+          newState.units.delete(id);
+        }
+        break;
+      }
+    }
+    cfs.pathStepIndex++;
+
+    // Check if we've reached the end of the path — target destroyed
+    if (cfs.pathStepIndex >= cfs.path.length) {
+      cfs.targetDestroyed = true;
+      cfs.resolved = true;
+      // Destroy the target
+      if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+        newState.units.delete(cfs.targetUnitId);
+      }
+    }
+  } else {
+    // Flying — no effect, continue
+    cfs.pathStepIndex++;
+
+    if (cfs.pathStepIndex >= cfs.path.length) {
+      cfs.targetDestroyed = true;
+      cfs.resolved = true;
+      if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+        newState.units.delete(cfs.targetUnitId);
+      }
+    }
+  }
+
+  // Check win condition
+  const winner = checkWinCondition(newState);
+  if (winner) {
+    newState.winner = winner;
+    newState.currentPhase = 'game_over';
+  }
+
+  return newState;
+}
+
+function handleEndCannonFire(state: GameState): GameState {
+  const newState = cloneState(state);
+  return endCannonFireTurn(newState);
+}
+
+function endCannonFireTurn(state: GameState): GameState {
+  state.cannonFireState = null;
+  if (state.currentCard) {
+    state.discardPile.push(state.currentCard);
+    state.currentCard = null;
+  }
+  state.selectedUnitId = null;
+  state.turnNumber++;
+  state.currentPhase = 'draw_card';
+  return state;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -380,5 +658,13 @@ function cloneState(state: GameState): GameState {
     currentCard: state.currentCard ? { ...state.currentCard } : null,
     ogreSubDeck: state.ogreSubDeck.map(c => ({ ...c })),
     currentOgreSubCard: state.currentOgreSubCard ? { ...state.currentOgreSubCard } : null,
+    cannonFireState: state.cannonFireState ? {
+      ...state.cannonFireState,
+      tileDeck: state.cannonFireState.tileDeck.map(t => ({ ...t })),
+      path: state.cannonFireState.path.map(c => ({ ...c })),
+      placedTiles: state.cannonFireState.placedTiles.map(p => ({ coord: { ...p.coord }, tile: { ...p.tile } })),
+      targetCoord: { ...state.cannonFireState.targetCoord },
+      misfireTile: state.cannonFireState.misfireTile ? { ...state.cannonFireState.misfireTile } : null,
+    } : null,
   };
 }

@@ -9,7 +9,7 @@ import { Effects } from '../engine/Effects';
 import { AssetLoader } from '../engine/AssetLoader';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
-import { getValidMoveTargets, getValidAttackTargets } from '@battle-masters/game-logic';
+import { getValidMoveTargets, getValidAttackTargets, hexDistance, getShortestPaths, coordToKey } from '@battle-masters/game-logic';
 
 export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | null>) {
   const engineRef = useRef<{
@@ -113,6 +113,29 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 useUIStore.getState().setPendingAttack(state.selectedUnitId, event.unitId);
               }
             }
+
+            // Cannon fire: clicking enemy unit while in targeting mode
+            if (
+              state.currentPhase === 'cannon_fire' &&
+              useUIStore.getState().cannonFiringStep === 'targeting' &&
+              state.selectedUnitId &&
+              unit.faction !== state.activeFaction
+            ) {
+              const cannon = state.units.get(state.selectedUnitId);
+              if (cannon) {
+                const dist = hexDistance(cannon.position, unit.position);
+                if (dist >= 1 && dist <= 8) {
+                  dispatch({ type: 'FIRE_CANNON', targetCoord: unit.position });
+                  // Check if path selection is needed
+                  const nextState = useGameStore.getState().state;
+                  if (nextState?.cannonFireState && nextState.cannonFireState.path.length === 0 && !nextState.cannonFireState.adjacentShot) {
+                    useUIStore.getState().setCannonFiringStep('path_select');
+                  } else {
+                    useUIStore.getState().setCannonFiringStep(nextState?.cannonFireState?.resolved ? 'resolved' : 'drawing');
+                  }
+                }
+              }
+            }
             break;
           }
 
@@ -136,6 +159,30 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 unitId: state.selectedUnitId,
                 to: event.hexCoord,
               });
+            }
+            // Cannon fire: move cannon or select path
+            if (state.currentPhase === 'cannon_fire') {
+              const uiState = useUIStore.getState();
+              if (uiState.cannonFiringStep === 'idle') {
+                // Moving the cannon
+                dispatch({
+                  type: 'MOVE_UNIT',
+                  unitId: state.selectedUnitId,
+                  to: event.hexCoord,
+                });
+              } else if (uiState.cannonFiringStep === 'path_select' && state.cannonFireState) {
+                // Pick a path that passes through this hex
+                const cannon = state.units.get(state.selectedUnitId);
+                if (cannon) {
+                  const allPaths = getShortestPaths(cannon.position, state.cannonFireState.targetCoord);
+                  const clickedKey = coordToKey(event.hexCoord);
+                  const matchingPath = allPaths.find(p => p.some(h => coordToKey(h) === clickedKey));
+                  if (matchingPath) {
+                    dispatch({ type: 'SELECT_CANNON_PATH', path: matchingPath });
+                    useUIStore.getState().setCannonFiringStep('drawing');
+                  }
+                }
+              }
             }
             break;
           }
@@ -200,6 +247,52 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 .map((id) => state.units.get(id)?.position)
                 .filter((p): p is import('@battle-masters/game-logic').HexCoord => !!p);
               highlights.showAttackHighlights(attackHexes);
+            }
+          }
+
+          // Cannon fire highlights
+          if (state.currentPhase === 'cannon_fire' && state.selectedUnitId) {
+            const cannon = state.units.get(state.selectedUnitId);
+            if (cannon) {
+              highlights.showSelectedHighlight(cannon.position);
+
+              const firingStep = uiState.cannonFiringStep;
+              if (firingStep === 'idle') {
+                // Show move targets
+                const moves = getValidMoveTargets(state, state.selectedUnitId);
+                highlights.showMoveHighlights(moves);
+              } else if (firingStep === 'targeting') {
+                // Show all enemy units in range
+                const rangeHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+                for (const [, unit] of state.units) {
+                  if (unit.faction === cannon.faction) continue;
+                  const dist = hexDistance(cannon.position, unit.position);
+                  if (dist >= 1 && dist <= 8) {
+                    rangeHexes.push(unit.position);
+                  }
+                }
+                highlights.showCannonRangeHighlights(rangeHexes);
+              } else if (firingStep === 'path_select' && state.cannonFireState) {
+                // Show all possible path hexes
+                const allPaths = getShortestPaths(cannon.position, state.cannonFireState.targetCoord);
+                const pathHexSet = new Set<string>();
+                const pathHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+                for (const path of allPaths) {
+                  for (const hex of path) {
+                    const key = coordToKey(hex);
+                    if (!pathHexSet.has(key)) {
+                      pathHexSet.add(key);
+                      pathHexes.push(hex);
+                    }
+                  }
+                }
+                highlights.showCannonPathHighlights(pathHexes);
+                highlights.showAttackHighlights([state.cannonFireState.targetCoord]);
+              } else if ((firingStep === 'drawing' || firingStep === 'resolved') && state.cannonFireState) {
+                // Show the selected path and placed tiles
+                highlights.showCannonPathHighlights(state.cannonFireState.path);
+                highlights.showAttackHighlights([state.cannonFireState.targetCoord]);
+              }
             }
           }
 

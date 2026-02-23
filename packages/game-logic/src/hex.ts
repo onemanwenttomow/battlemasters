@@ -182,6 +182,45 @@ export function getHexesInRange(center: HexCoord, range: number, width: number, 
   return result;
 }
 
+// ─── Shortest Paths (for cannon fire) ─────────────────────────
+
+/**
+ * Get all shortest paths between two hexes.
+ * Returns arrays of intermediate hexes only (excluding from and to).
+ * Each step must reduce the hex distance to the target by 1.
+ * Cannonballs fly over all terrain/units, so no blocking.
+ */
+export function getShortestPaths(from: HexCoord, to: HexCoord): HexCoord[][] {
+  const dist = hexDistance(from, to);
+
+  // Adjacent or same hex — no intermediate steps
+  if (dist <= 1) return [[]];
+
+  const results: HexCoord[][] = [];
+
+  function recurse(current: HexCoord, remaining: number, path: HexCoord[]): void {
+    if (remaining === 1) {
+      // Next step should be the target — we're done, path is complete
+      results.push([...path]);
+      return;
+    }
+
+    const neighbors = getNeighbors(current);
+    for (const neighbor of neighbors) {
+      const neighborDist = hexDistance(neighbor, to);
+      // Each step must reduce distance to target by exactly 1
+      if (neighborDist === remaining - 1) {
+        path.push(neighbor);
+        recurse(neighbor, remaining - 1, path);
+        path.pop();
+      }
+    }
+  }
+
+  recurse(from, dist, []);
+  return results;
+}
+
 // ─── Line of Sight ─────────────────────────────────────────────
 
 function cubeLineDraw(a: CubeCoord, b: CubeCoord): CubeCoord[] {

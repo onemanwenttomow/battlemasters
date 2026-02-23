@@ -1,4 +1,4 @@
-import { BattleCard, Faction, UnitType, SpecialCardType, OgreSubCard } from './types.js';
+import { BattleCard, Faction, UnitType, SpecialCardType, OgreSubCard, CannonTile } from './types.js';
 
 // ─── Seeded PRNG ───────────────────────────────────────────────
 
@@ -131,4 +131,19 @@ export function createOgreSubDeck(rng: () => number): OgreSubCard[] {
 /** Reshuffle the discard pile into the deck */
 export function reshuffleDeck(discard: BattleCard[], rng: () => number): BattleCard[] {
   return shuffleDeck(discard, rng);
+}
+
+/** Create the 10-tile cannon deck: 4 flying, 3 bouncing, 3 explosion, shuffled */
+export function createCannonTileDeck(rng: () => number): CannonTile[] {
+  const deck: CannonTile[] = [
+    { type: 'flying' }, { type: 'flying' }, { type: 'flying' }, { type: 'flying' },
+    { type: 'bouncing' }, { type: 'bouncing' }, { type: 'bouncing' },
+    { type: 'explosion' }, { type: 'explosion' }, { type: 'explosion' },
+  ];
+  // Fisher-Yates shuffle
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
 }

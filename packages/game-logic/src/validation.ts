@@ -27,6 +27,14 @@ export function validateAction(state: GameState, action: GameAction): Validation
       return validateDrawOgreCard(state);
     case 'END_OGRE_ACTIVATION':
       return validateEndOgreActivation(state);
+    case 'FIRE_CANNON':
+      return validateFireCannon(state, action.targetCoord);
+    case 'SELECT_CANNON_PATH':
+      return validateSelectCannonPath(state, action.path);
+    case 'DRAW_CANNON_TILE':
+      return validateDrawCannonTile(state);
+    case 'END_CANNON_FIRE':
+      return validateEndCannonFire(state);
     case 'PASS':
       return validatePass(state);
     default:
@@ -88,6 +96,15 @@ function validateMoveUnit(state: GameState, unitId: string, to: HexCoord): Valid
   if (state.currentPhase === 'ogre_rampage') {
     if (!state.currentOgreSubCard || state.currentOgreSubCard.type !== 'ogre_move') {
       return { valid: false, reason: 'Current ogre sub-card is not a move card' };
+    }
+  } else if (state.currentPhase === 'cannon_fire') {
+    // Cannon can move 1 space instead of firing (only before firing)
+    if (state.cannonFireState) {
+      return { valid: false, reason: 'Cannot move after initiating cannon fire' };
+    }
+    const unit = state.units.get(unitId);
+    if (!unit || unit.definitionType !== 'mighty_cannon') {
+      return { valid: false, reason: 'Only the cannon can move during cannon fire phase' };
     }
   } else if (state.currentPhase !== 'activation') {
     return { valid: false, reason: 'Not in activation phase' };
@@ -234,8 +251,85 @@ function validateEndOgreActivation(state: GameState): ValidationResult {
 }
 
 function validatePass(state: GameState): ValidationResult {
-  if (state.currentPhase !== 'activation' && state.currentPhase !== 'draw_card' && state.currentPhase !== 'ogre_rampage') {
+  if (state.currentPhase !== 'activation' && state.currentPhase !== 'draw_card' && state.currentPhase !== 'ogre_rampage' && state.currentPhase !== 'cannon_fire') {
     return { valid: false, reason: 'Cannot pass in current phase' };
+  }
+  return { valid: true };
+}
+
+// ─── Cannon Fire Validators ────────────────────────────────────
+
+function validateFireCannon(state: GameState, targetCoord: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'cannon_fire') {
+    return { valid: false, reason: 'Not in cannon fire phase' };
+  }
+  if (state.cannonFireState) {
+    return { valid: false, reason: 'Cannon fire already in progress' };
+  }
+
+  const cannon = state.units.get(state.selectedUnitId!);
+  if (!cannon) {
+    return { valid: false, reason: 'Cannon not found' };
+  }
+
+  const distance = hexDistance(cannon.position, targetCoord);
+  if (distance < 1 || distance > 8) {
+    return { valid: false, reason: 'Target out of range (1-8)' };
+  }
+
+  // Target must have an enemy unit
+  let hasEnemy = false;
+  for (const [, unit] of state.units) {
+    if (unit.faction !== cannon.faction && coordToKey(unit.position) === coordToKey(targetCoord)) {
+      hasEnemy = true;
+      break;
+    }
+  }
+  if (!hasEnemy) {
+    return { valid: false, reason: 'No enemy unit at target' };
+  }
+
+  return { valid: true };
+}
+
+function validateSelectCannonPath(state: GameState, _path: HexCoord[]): ValidationResult {
+  if (state.currentPhase !== 'cannon_fire') {
+    return { valid: false, reason: 'Not in cannon fire phase' };
+  }
+  if (!state.cannonFireState) {
+    return { valid: false, reason: 'No cannon fire in progress' };
+  }
+  if (state.cannonFireState.path.length > 0) {
+    return { valid: false, reason: 'Path already selected' };
+  }
+  if (state.cannonFireState.resolved) {
+    return { valid: false, reason: 'Cannon fire already resolved' };
+  }
+  return { valid: true };
+}
+
+function validateDrawCannonTile(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'cannon_fire') {
+    return { valid: false, reason: 'Not in cannon fire phase' };
+  }
+  if (!state.cannonFireState) {
+    return { valid: false, reason: 'No cannon fire in progress' };
+  }
+  if (state.cannonFireState.path.length === 0 && !state.cannonFireState.adjacentShot) {
+    return { valid: false, reason: 'Path not yet selected' };
+  }
+  if (state.cannonFireState.resolved) {
+    return { valid: false, reason: 'Cannon fire already resolved' };
+  }
+  if (state.cannonFireState.tileIndex >= state.cannonFireState.tileDeck.length) {
+    return { valid: false, reason: 'No more tiles to draw' };
+  }
+  return { valid: true };
+}
+
+function validateEndCannonFire(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'cannon_fire') {
+    return { valid: false, reason: 'Not in cannon fire phase' };
   }
   return { valid: true };
 }

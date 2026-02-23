@@ -34,3 +34,23 @@ export function endActivation(): GameAction {
 export function pass(): GameAction {
   return { type: 'PASS' };
 }
+
+/** Create a FIRE_CANNON action */
+export function fireCannon(targetCoord: HexCoord): GameAction {
+  return { type: 'FIRE_CANNON', targetCoord };
+}
+
+/** Create a SELECT_CANNON_PATH action */
+export function selectCannonPath(path: HexCoord[]): GameAction {
+  return { type: 'SELECT_CANNON_PATH', path };
+}
+
+/** Create a DRAW_CANNON_TILE action */
+export function drawCannonTile(): GameAction {
+  return { type: 'DRAW_CANNON_TILE' };
+}
+
+/** Create an END_CANNON_FIRE action */
+export function endCannonFire(): GameAction {
+  return { type: 'END_CANNON_FIRE' };
+}

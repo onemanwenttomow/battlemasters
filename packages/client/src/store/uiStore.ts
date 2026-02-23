@@ -16,6 +16,8 @@ interface CombatEffectInfo {
   isCharge: boolean;
 }
 
+type CannonFiringStep = 'idle' | 'targeting' | 'path_select' | 'drawing' | 'resolved';
+
 interface UIStore {
   screen: Screen;
   showCombatLog: boolean;
@@ -25,6 +27,7 @@ interface UIStore {
   pendingAttack: PendingAttack | null;
   combatEffectInfo: CombatEffectInfo | null;
   inspectedUnitId: string | null;
+  cannonFiringStep: CannonFiringStep;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -34,6 +37,7 @@ interface UIStore {
   hideDice: () => void;
   setPendingAttack: (attackerId: string, defenderId: string) => void;
   clearPendingAttack: () => void;
+  setCannonFiringStep: (step: CannonFiringStep) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -45,6 +49,7 @@ export const useUIStore = create<UIStore>((set) => ({
   pendingAttack: null,
   combatEffectInfo: null,
   inspectedUnitId: null,
+  cannonFiringStep: 'idle',
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -54,4 +59,5 @@ export const useUIStore = create<UIStore>((set) => ({
   hideDice: () => set({ showDiceRoll: false, combatEffectInfo: null }),
   setPendingAttack: (attackerId, defenderId) => set({ pendingAttack: { attackerId, defenderId } }),
   clearPendingAttack: () => set({ pendingAttack: null }),
+  setCannonFiringStep: (step) => set({ cannonFiringStep: step }),
 }));

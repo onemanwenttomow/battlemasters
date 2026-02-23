@@ -17,6 +17,8 @@ export function GameHUD() {
   const dispatch = useGameStore((s) => s.dispatch);
   const showCoords = useUIStore((s) => s.showCoords);
   const toggleCoords = useUIStore((s) => s.toggleCoords);
+  const cannonFiringStep = useUIStore((s) => s.cannonFiringStep);
+  const setCannonFiringStep = useUIStore((s) => s.setCannonFiringStep);
 
   if (!state) return null;
 
@@ -78,6 +80,17 @@ export function GameHUD() {
                 </span>
               )}
             </div>
+          ) : state.currentPhase === 'cannon_fire' ? (
+            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
+              {cannonFiringStep === 'idle' && 'Move or Fire'}
+              {cannonFiringStep === 'targeting' && 'Select Target'}
+              {cannonFiringStep === 'path_select' && 'Select Path'}
+              {cannonFiringStep === 'drawing' && `Drawing Tiles${state.cannonFireState ? ` (${state.cannonFireState.placedTiles.length})` : ''}`}
+              {cannonFiringStep === 'resolved' && (
+                state.cannonFireState?.misfire ? 'MISFIRE!' :
+                state.cannonFireState?.targetDestroyed ? 'Target Destroyed!' : 'Shot Complete'
+              )}
+            </div>
           ) : (
             <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
               {state.activatedUnitIds.length} / {Math.min(state.currentCard.count, 99)} activated
@@ -131,6 +144,38 @@ export function GameHUD() {
             <button onClick={() => dispatch({ type: 'PASS' })} style={btnStyle('#666')}>
               End Rampage
             </button>
+          </>
+        )}
+        {state.currentPhase === 'cannon_fire' && (
+          <>
+            {cannonFiringStep === 'idle' && (
+              <>
+                <button onClick={() => setCannonFiringStep('targeting')} style={btnStyle('#ff8844')}>
+                  Fire Cannon
+                </button>
+                <button onClick={() => dispatch({ type: 'PASS' })} style={btnStyle('#666')}>
+                  Pass
+                </button>
+              </>
+            )}
+            {cannonFiringStep === 'targeting' && (
+              <button onClick={() => setCannonFiringStep('idle')} style={btnStyle('#888')}>
+                Cancel
+              </button>
+            )}
+            {cannonFiringStep === 'drawing' && state.cannonFireState && !state.cannonFireState.resolved && (
+              <button onClick={() => dispatch({ type: 'DRAW_CANNON_TILE' })} style={btnStyle('#ff8844')}>
+                Draw Tile
+              </button>
+            )}
+            {(cannonFiringStep === 'resolved' || (state.cannonFireState && state.cannonFireState.resolved)) && (
+              <button onClick={() => {
+                setCannonFiringStep('idle');
+                dispatch({ type: 'END_CANNON_FIRE' });
+              }} style={btnStyle('#888')}>
+                End
+              </button>
+            )}
           </>
         )}
       </div>

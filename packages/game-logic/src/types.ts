@@ -129,6 +129,30 @@ export interface OgreSubCard {
   type: 'ogre_move' | 'ogre_attack';
 }
 
+// ─── Cannon Tiles ───────────────────────────────────────────────
+
+export type CannonTileType = 'flying' | 'bouncing' | 'explosion';
+
+export interface CannonTile {
+  type: CannonTileType;
+}
+
+export interface CannonFireState {
+  cannonUnitId: string;
+  targetCoord: HexCoord;
+  targetUnitId: string | null;
+  tileDeck: CannonTile[];
+  tileIndex: number;
+  path: HexCoord[];                  // intermediate hexes from cannon to target (exclusive of both endpoints)
+  placedTiles: { coord: HexCoord; tile: CannonTile }[];
+  pathStepIndex: number;
+  resolved: boolean;
+  misfire: boolean;
+  misfireTile: CannonTile | null;
+  targetDestroyed: boolean;
+  adjacentShot: boolean;
+}
+
 // ─── Game Phases ───────────────────────────────────────────────
 
 export type GamePhase =
@@ -137,6 +161,7 @@ export type GamePhase =
   | 'activation'
   | 'combat'
   | 'ogre_rampage'
+  | 'cannon_fire'
   | 'game_over';
 
 // ─── Game Actions ──────────────────────────────────────────────
@@ -150,6 +175,10 @@ export type GameAction =
   | { type: 'END_ACTIVATION' }
   | { type: 'DRAW_OGRE_CARD' }
   | { type: 'END_OGRE_ACTIVATION' }
+  | { type: 'FIRE_CANNON'; targetCoord: HexCoord }
+  | { type: 'SELECT_CANNON_PATH'; path: HexCoord[] }
+  | { type: 'DRAW_CANNON_TILE' }
+  | { type: 'END_CANNON_FIRE' }
   | { type: 'PASS' };
 
 // ─── Game State ────────────────────────────────────────────────
@@ -173,6 +202,8 @@ export interface GameState {
   ogreSubCardIndex: number;
   ogreSubCardsTotal: number;
   currentOgreSubCard: OgreSubCard | null;
+  // Cannon Fire state
+  cannonFireState: CannonFireState | null;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

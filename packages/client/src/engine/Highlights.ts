@@ -2,13 +2,15 @@ import * as THREE from 'three';
 import { HexCoord } from '@battle-masters/game-logic';
 import { hexToWorld, HEX_SIZE } from '@battle-masters/game-logic';
 
-type HighlightType = 'move' | 'attack' | 'selected' | 'activatable';
+type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'cannonRange' | 'cannonPath';
 
 const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   move: 0x44aaff,
   attack: 0xff4444,
   selected: 0xffcc00,
   activatable: 0xffcc00,
+  cannonRange: 0xff8844,
+  cannonPath: 0xff6622,
 };
 
 export class Highlights {
@@ -90,6 +92,20 @@ export class Highlights {
     for (const mesh of this.meshes) {
       const mat = mesh.material as THREE.MeshBasicMaterial;
       mat.opacity = 0.2 + Math.sin(this.time * 3) * 0.1;
+    }
+  }
+
+  /** Show cannon range highlights */
+  showCannonRangeHighlights(hexes: HexCoord[]) {
+    for (const hex of hexes) {
+      this.addHighlight(hex, 'cannonRange');
+    }
+  }
+
+  /** Show cannon path highlights */
+  showCannonPathHighlights(hexes: HexCoord[]) {
+    for (const hex of hexes) {
+      this.addHighlight(hex, 'cannonPath');
     }
   }
 
