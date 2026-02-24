@@ -46,7 +46,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
       // Initialize engine
       const scene = new SceneManager(container);
       const hexBoard = new HexBoard(scene.scene, assetLoader);
-      const unitRenderer = new UnitRenderer(scene.scene);
+      const unitRenderer = new UnitRenderer(scene.scene, assetLoader);
       const camera = new CameraController(scene.camera, scene.renderer.domElement);
       const highlights = new Highlights(scene.scene);
       const effects = new Effects(scene.scene);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Unit, Faction, UnitType } from '@battle-masters/game-logic';
 import { getUnitDefinition } from '@battle-masters/game-logic';
 import { hexToWorld } from '@battle-masters/game-logic';
+import { AssetLoader } from './AssetLoader';
 
 const FACTION_COLORS: Record<Faction, number> = {
   imperial: 0x3366aa,
@@ -27,7 +28,8 @@ const UNIT_ICONS: Record<UnitType, string> = {
 
 interface UnitMeshGroup {
   group: THREE.Group;
-  standee: THREE.Mesh;
+  standee: THREE.Mesh | null;
+  model: THREE.Group | null;
   base: THREE.Mesh;
   unitId: string;
   targetX: number;
@@ -68,10 +70,12 @@ export class UnitRenderer {
   private unitMeshes: Map<string, UnitMeshGroup> = new Map();
   private parentGroup: THREE.Group;
   private baseHeight = 0;
+  private assetLoader: AssetLoader | null = null;
 
-  constructor(private scene: THREE.Scene) {
+  constructor(private scene: THREE.Scene, assetLoader?: AssetLoader) {
     this.parentGroup = new THREE.Group();
     this.scene.add(this.parentGroup);
+    this.assetLoader = assetLoader ?? null;
   }
 
   setBaseHeight(tileTopY: number) {
@@ -111,7 +115,7 @@ export class UnitRenderer {
     // Base cylinder (faction-colored)
     const baseGeo = new THREE.CylinderGeometry(0.45, 0.5, 0.15, 16);
     const baseMat = new THREE.MeshStandardMaterial({
-      color: FACTION_COLORS[unit.faction],
+      color: 0x333333,
       roughness: 0.6,
       metalness: 0.3,
     });
@@ -120,32 +124,95 @@ export class UnitRenderer {
     base.castShadow = true;
     group.add(base);
 
-    // Standee card (simplified: icon + name only)
-    const texture = this.createPlaceholderTexture(unit, def.name);
-    const standeeMat = new THREE.MeshStandardMaterial({
-      map: texture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      roughness: 0.7,
-      metalness: 0.0,
-    });
-    const standeeGeo = new THREE.PlaneGeometry(0.7, 1.05);
-    const standee = new THREE.Mesh(standeeGeo, standeeMat);
-    standee.position.y = 0.85;
-    standee.castShadow = true;
-    group.add(standee);
+    let standee: THREE.Mesh | null = null;
+    let model: THREE.Group | null = null;
+
+    // Try to load 3D model
+    const unitModel = this.assetLoader?.getModel(`unit_${unit.definitionType}`);
+    if (unitModel) {
+      model = unitModel;
+
+      // Auto-scale model to fit within the hex cell
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scaleOverrides: Partial<Record<UnitType, number>> = {
+        ogre_champion: 1.5,
+        imperial_knights: 1.5,
+        lord_knights: 1.5,
+        champions_of_chaos: 1.5,
+        mighty_cannon: 1.2,
+      };
+      const targetSize = 0.8 * (scaleOverrides[unit.definitionType] ?? 1.0);
+      if (maxDim > 0) {
+        const scale = targetSize / maxDim;
+        model.scale.setScalar(scale);
+      }
+
+      // Re-center horizontally and sit on the base
+      box.setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const min = box.min;
+      model.position.x -= center.x;
+      model.position.z -= center.z;
+      model.position.y -= min.y;
+      model.position.y += 0.33;
+
+      // Enable shadows on all meshes in the model
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          // Tag for raycasting
+          child.userData = { unitId: unit.id };
+        }
+      });
+      // Per-unit rotation overrides (radians, applied before faction flip)
+      const rotationOverrides: Partial<Record<UnitType, number>> = {
+        mighty_cannon: Math.PI,
+        imperial_knights: Math.PI / 2,
+        lord_knights: Math.PI / 2,
+        men_at_arms: Math.PI / 2,
+        goblin: Math.PI / 2,
+        beastman: Math.PI / 2,
+        orc: Math.PI / 2,
+        chaos_warrior: Math.PI / 2,
+        wolf_rider: Math.PI / 2,
+        champions_of_chaos: Math.PI / 2,
+        ogre_champion: Math.PI / 2,
+      };
+      const baseRotation = rotationOverrides[unit.definitionType] ?? 0;
+      // Face chaos units toward imperial side (rotate 180°)
+      model.rotation.y = baseRotation + (unit.faction === 'chaos' ? Math.PI : 0);
+      group.add(model);
+    } else {
+      // Fallback: standee card
+      const texture = this.createPlaceholderTexture(unit, def.name);
+      const standeeMat = new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        roughness: 0.7,
+        metalness: 0.0,
+      });
+      const standeeGeo = new THREE.PlaneGeometry(0.7, 1.05);
+      standee = new THREE.Mesh(standeeGeo, standeeMat);
+      standee.position.y = 0.85;
+      standee.castShadow = true;
+      standee.userData = { unitId: unit.id };
+      group.add(standee);
+    }
 
     // Store userData for raycasting
     group.userData = { unitId: unit.id, faction: unit.faction };
     base.userData = { unitId: unit.id };
-    standee.userData = { unitId: unit.id };
 
     const pos = hexToWorld(unit.position);
     group.position.set(pos.x, this.baseHeight, pos.z);
 
     this.parentGroup.add(group);
     this.unitMeshes.set(unit.id, {
-      group, standee, base, unitId: unit.id,
+      group, standee, model, base, unitId: unit.id,
       targetX: pos.x, targetZ: pos.z,
       skullTokens: [], currentSkullCount: 0,
     });
@@ -281,8 +348,22 @@ export class UnitRenderer {
     }
 
     this.parentGroup.remove(meshGroup.group);
-    meshGroup.standee.geometry.dispose();
-    (meshGroup.standee.material as THREE.Material).dispose();
+    if (meshGroup.standee) {
+      meshGroup.standee.geometry.dispose();
+      (meshGroup.standee.material as THREE.Material).dispose();
+    }
+    if (meshGroup.model) {
+      meshGroup.model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m) => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
+    }
     meshGroup.base.geometry.dispose();
     (meshGroup.base.material as THREE.Material).dispose();
     this.unitMeshes.delete(id);
@@ -291,15 +372,17 @@ export class UnitRenderer {
   /** Billboard all standees toward camera */
   updateBillboards(camera: THREE.Camera) {
     for (const [, meshGroup] of this.unitMeshes) {
-      // Y-axis only billboard
-      const camPos = camera.position.clone();
-      camPos.y = meshGroup.standee.position.y + meshGroup.group.position.y;
-      const worldPos = new THREE.Vector3();
-      meshGroup.standee.getWorldPosition(worldPos);
-      camPos.y = worldPos.y;
-      meshGroup.standee.lookAt(camPos);
+      // Only billboard standees (not 3D models)
+      if (meshGroup.standee) {
+        const camPos = camera.position.clone();
+        camPos.y = meshGroup.standee.position.y + meshGroup.group.position.y;
+        const worldPos = new THREE.Vector3();
+        meshGroup.standee.getWorldPosition(worldPos);
+        camPos.y = worldPos.y;
+        meshGroup.standee.lookAt(camPos);
+      }
 
-      // Billboard skull tokens too
+      // Billboard skull tokens
       for (const skull of meshGroup.skullTokens) {
         const skullWorld = new THREE.Vector3();
         skull.getWorldPosition(skullWorld);
@@ -310,11 +393,21 @@ export class UnitRenderer {
     }
   }
 
-  /** Get all meshes for raycasting (bases + standees) */
+  /** Get all meshes for raycasting (bases + standees + model children) */
   getUnitMeshes(): THREE.Object3D[] {
     const meshes: THREE.Object3D[] = [];
     for (const [, mg] of this.unitMeshes) {
-      meshes.push(mg.base, mg.standee);
+      meshes.push(mg.base);
+      if (mg.standee) {
+        meshes.push(mg.standee);
+      }
+      if (mg.model) {
+        mg.model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            meshes.push(child);
+          }
+        });
+      }
     }
     return meshes;
   }

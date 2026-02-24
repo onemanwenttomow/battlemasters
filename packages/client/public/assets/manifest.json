@@ -1,5 +1,21 @@
 {
   "units": {},
+  "unitModels": {
+    "men_at_arms": "/assets/models/units/men_at_arms.glb",
+    "archer": "/assets/models/units/archer.glb",
+    "crossbowman": "/assets/models/units/crossbowman.glb",
+    "imperial_knights": "/assets/models/units/imperial_knights.glb",
+    "lord_knights": "/assets/models/units/lord_knights.glb",
+    "mighty_cannon": "/assets/models/units/mighty_canon.glb",
+    "goblin": "/assets/models/units/goblin.glb",
+    "beastman": "/assets/models/units/beastman.glb",
+    "chaos_bowman": "/assets/models/units/chaos_bowman.glb",
+    "orc": "/assets/models/units/orc.glb",
+    "chaos_warrior": "/assets/models/units/chaos_warrior.glb",
+    "wolf_rider": "/assets/models/units/wolf_rider.glb",
+    "champions_of_chaos": "/assets/models/units/champions_of_chaos.glb",
+    "ogre_champion": "/assets/models/units/ogre_champion.glb"
+  },
   "terrain": {
     "plain": "/assets/terrain/plain.png",
     "river": "/assets/terrain/river.png",

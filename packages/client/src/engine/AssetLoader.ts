@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 export interface UnitSpriteConfig {
   idle: string;
@@ -11,6 +12,7 @@ export interface UnitSpriteConfig {
 
 export interface AssetManifest {
   units: Record<string, UnitSpriteConfig>;
+  unitModels?: Record<string, string>;
   terrain: Record<string, string>;
   models?: Record<string, string>;
   audio: {
@@ -22,10 +24,18 @@ export interface AssetManifest {
 
 export class AssetLoader {
   private textureLoader = new THREE.TextureLoader();
-  private gltfLoader = new GLTFLoader();
+  private gltfLoader: GLTFLoader;
+  private dracoLoader: DRACOLoader;
   private textures: Map<string, THREE.Texture> = new Map();
   private models: Map<string, THREE.Group> = new Map();
   private manifest: AssetManifest | null = null;
+
+  constructor() {
+    this.dracoLoader = new DRACOLoader();
+    this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+    this.gltfLoader = new GLTFLoader();
+    this.gltfLoader.setDRACOLoader(this.dracoLoader);
+  }
 
   /** Load manifest from URL */
   async loadManifest(url: string): Promise<void> {
@@ -56,6 +66,13 @@ export class AssetLoader {
     if (this.manifest.models) {
       for (const [key, path] of Object.entries(this.manifest.models)) {
         promises.push(this.loadModel(key, path));
+      }
+    }
+
+    // Load unit GLB models
+    if (this.manifest.unitModels) {
+      for (const [key, path] of Object.entries(this.manifest.unitModels)) {
+        promises.push(this.loadModel(`unit_${key}`, path));
       }
     }
 
@@ -144,5 +161,6 @@ export class AssetLoader {
       });
     }
     this.models.clear();
+    this.dracoLoader.dispose();
   }
 }
