@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { Unit, Faction, UnitType } from '@battle-masters/game-logic';
-import { getUnitDefinition } from '@battle-masters/game-logic';
+import { Unit, Faction, UnitType, BoardState } from '@battle-masters/game-logic';
+import { getUnitDefinition, getTile } from '@battle-masters/game-logic';
 import { hexToWorld } from '@battle-masters/game-logic';
 import { AssetLoader } from './AssetLoader';
 
@@ -34,6 +34,7 @@ interface UnitMeshGroup {
   unitId: string;
   targetX: number;
   targetZ: number;
+  targetY: number;
   skullTokens: THREE.Mesh[];
   currentSkullCount: number;
 }
@@ -84,7 +85,7 @@ export class UnitRenderer {
 
   /** Sync rendered units with game state.
    *  deferDamageForId: if set, skull tokens for this unit won't update (used during dice roll display) */
-  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null) {
+  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null, board?: BoardState) {
     const currentIds = new Set(units.keys());
 
     // Remove units no longer in state (unless preserved for pending effects)
@@ -99,7 +100,7 @@ export class UnitRenderer {
       if (!this.unitMeshes.has(id)) {
         this.createUnitMesh(unit);
       }
-      this.updateUnitMesh(unit, id === selectedUnitId);
+      this.updateUnitMesh(unit, id === selectedUnitId, board);
 
       // Sync skull tokens (defer if this unit's damage display is suppressed)
       if (deferDamageForId !== id) {
@@ -142,6 +143,7 @@ export class UnitRenderer {
         lord_knights: 1.5,
         champions_of_chaos: 1.5,
         mighty_cannon: 1.2,
+        goblin: 0.7,
       };
       const targetSize = 0.8 * (scaleOverrides[unit.definitionType] ?? 1.0);
       if (maxDim > 0) {
@@ -213,7 +215,7 @@ export class UnitRenderer {
     this.parentGroup.add(group);
     this.unitMeshes.set(unit.id, {
       group, standee, model, base, unitId: unit.id,
-      targetX: pos.x, targetZ: pos.z,
+      targetX: pos.x, targetZ: pos.z, targetY: this.baseHeight,
       skullTokens: [], currentSkullCount: 0,
     });
   }
@@ -304,7 +306,9 @@ export class UnitRenderer {
     }
   }
 
-  private updateUnitMesh(unit: Unit, isSelected: boolean) {
+  private static TOWER_Y_OFFSET = 1.5;
+
+  private updateUnitMesh(unit: Unit, isSelected: boolean, board?: BoardState) {
     const meshGroup = this.unitMeshes.get(unit.id);
     if (!meshGroup) return;
 
@@ -316,23 +320,52 @@ export class UnitRenderer {
     const baseMat = meshGroup.base.material as THREE.MeshStandardMaterial;
     baseMat.emissive.setHex(0x000000);
     baseMat.emissiveIntensity = 0;
-    meshGroup.group.position.y = this.baseHeight;
+
+    // Raise units on the tower
+    const tile = board ? getTile(board, unit.position) : undefined;
+    const yOffset = tile?.terrain === 'tower' ? UnitRenderer.TOWER_Y_OFFSET : 0;
+    meshGroup.targetY = this.baseHeight + yOffset;
   }
 
-  /** Animate units sliding toward their target positions */
+  /** Animate units sliding toward their target positions.
+   *  Entering tower: slide horizontally first, then rise.
+   *  Leaving tower: drop down first, then slide horizontally. */
   update(dt: number) {
     const speed = 6;
     for (const [, mg] of this.unitMeshes) {
       const dx = mg.targetX - mg.group.position.x;
       const dz = mg.targetZ - mg.group.position.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 0.01) {
+      const dy = mg.targetY - mg.group.position.y;
+      const horizDist = Math.sqrt(dx * dx + dz * dz);
+      const vertDist = Math.abs(dy);
+
+      const goingUp = dy > 0.01;
+      const goingDown = dy < -0.01;
+      const needsHorizMove = horizDist > 0.01;
+
+      if (goingDown && needsHorizMove) {
+        // Leaving tower: drop down first, then slide
+        const step = Math.min(speed * dt, vertDist);
+        mg.group.position.y += (dy / vertDist) * step;
+      } else if (goingUp && needsHorizMove) {
+        // Entering tower: slide first, then rise
+        const step = Math.min(speed * dt, horizDist);
+        mg.group.position.x += (dx / horizDist) * step;
+        mg.group.position.z += (dz / horizDist) * step;
+      } else if (needsHorizMove) {
+        // Normal horizontal movement
+        const step = Math.min(speed * dt, horizDist);
+        mg.group.position.x += (dx / horizDist) * step;
+        mg.group.position.z += (dz / horizDist) * step;
+      } else if (vertDist > 0.01) {
+        // Vertical movement (after horizontal is done)
+        const step = Math.min(speed * dt, vertDist);
+        mg.group.position.y += (dy / vertDist) * step;
+      } else {
+        // Snap to target
         mg.group.position.x = mg.targetX;
         mg.group.position.z = mg.targetZ;
-      } else {
-        const step = Math.min(speed * dt, dist);
-        mg.group.position.x += (dx / dist) * step;
-        mg.group.position.z += (dz / dist) * step;
+        mg.group.position.y = mg.targetY;
       }
     }
   }

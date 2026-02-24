@@ -318,11 +318,36 @@ export class HexBoard {
         const clone = this.assetLoader!.getModel(modelKey);
         if (!clone) continue;
 
-        clone.scale.setScalar(this.modelScale);
-        clone.position.set(pos.x, baseTopY, pos.z);
+        if (modelKey === "building_tower") {
+          // Custom tower model: auto-scale to fit hex cell
+          const box = new THREE.Box3().setFromObject(clone);
+          const size = box.getSize(new THREE.Vector3());
+          const maxHoriz = Math.max(size.x, size.z);
+          const targetWidth = Math.sqrt(3) * HEX_SIZE * 0.9;
+          const scale = maxHoriz > 0 ? targetWidth / maxHoriz : 1;
+          clone.scale.setScalar(scale);
 
-        // After placing the base tile, measure its top for stacking props
-        if (modelKey !== "building_tower") {
+          // Center on hex and sit on stone base
+          const scaledBox = new THREE.Box3().setFromObject(clone);
+          const center = scaledBox.getCenter(new THREE.Vector3());
+          clone.position.set(
+            pos.x - center.x + pos.x,
+            baseTopY - scaledBox.min.y,
+            pos.z - center.z + pos.z,
+          );
+          // Re-measure to get correct position
+          clone.position.set(pos.x, baseTopY, pos.z);
+          clone.updateMatrixWorld(true);
+          const finalBox = new THREE.Box3().setFromObject(clone);
+          const finalCenter = finalBox.getCenter(new THREE.Vector3());
+          clone.position.x += pos.x - finalCenter.x;
+          clone.position.z += pos.z - finalCenter.z;
+          clone.position.y += baseTopY - finalBox.min.y;
+        } else {
+          clone.scale.setScalar(this.modelScale);
+          clone.position.set(pos.x, baseTopY, pos.z);
+
+          // After placing the base tile, measure its top for stacking props
           clone.updateMatrixWorld(true);
           const tileBox = new THREE.Box3().setFromObject(clone);
           baseTopY = tileBox.max.y;
@@ -333,7 +358,7 @@ export class HexBoard {
           if (child instanceof THREE.Mesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            if (tint !== undefined) {
+            if (tint !== undefined && modelKey !== "building_tower") {
               child.material = (child.material as THREE.Material).clone();
               (child.material as THREE.MeshStandardMaterial).color.set(tint);
             }

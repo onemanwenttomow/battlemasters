@@ -202,7 +202,7 @@ export function getDefaultImperialArmy(): ArmySetup {
 
       // Archers (2) — behind front line
       { type: 'archer', position: { col: 6, row: 4 } },
-      { type: 'archer', position: { col: 8, row: 4 } },
+      { type: 'archer', position: { col: 6, row: 1 } },
 
       // Crossbowman (1)
       { type: 'crossbowman', position: { col: 7, row: 4 } },

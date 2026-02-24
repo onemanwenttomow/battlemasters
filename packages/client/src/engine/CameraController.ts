@@ -112,10 +112,20 @@ export class CameraController {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    this.spherical.radius *= 1 + e.deltaY * 0.001;
-    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch-to-zoom on trackpad (or ctrl+scroll)
+      this.spherical.radius *= 1 + e.deltaY * 0.005;
+      this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+    } else {
+      // Two-finger swipe on trackpad → pan
+      this.pan(-e.deltaX, -e.deltaY);
+    }
     this.updateCamera();
   };
+
+  // Pan bounds (based on 15x12 hex grid)
+  private panMin = new THREE.Vector3(-2, 0, -2);
+  private panMax = new THREE.Vector3(22, 0, 20);
 
   private pan(dx: number, dy: number) {
     const panSpeed = 0.02 * this.spherical.radius / 20;
@@ -131,6 +141,10 @@ export class CameraController {
 
     this.target.add(right.multiplyScalar(-dx * panSpeed));
     this.target.add(forward.multiplyScalar(dy * panSpeed));
+
+    // Clamp to bounds
+    this.target.x = Math.max(this.panMin.x, Math.min(this.panMax.x, this.target.x));
+    this.target.z = Math.max(this.panMin.z, Math.min(this.panMax.z, this.target.z));
   }
 
   private getPinchDistance(): number {

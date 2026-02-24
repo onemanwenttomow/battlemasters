@@ -215,7 +215,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           const deferDamageForId = uiState.showDiceRoll
             ? uiState.combatEffectInfo?.damagedUnitId ?? null
             : null;
-          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId);
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
