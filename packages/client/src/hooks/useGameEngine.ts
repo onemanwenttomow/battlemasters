@@ -125,6 +125,8 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
               if (cannon) {
                 const dist = hexDistance(cannon.position, unit.position);
                 if (dist >= 1 && dist <= 8) {
+                  // Spawn fire effect at cannon position
+                  effects.spawnCannonFireEffect(cannon.position);
                   dispatch({ type: 'FIRE_CANNON', targetCoord: unit.position });
                   // Check if path selection is needed
                   const nextState = useGameStore.getState().state;
@@ -132,6 +134,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                     useUIStore.getState().setCannonFiringStep('path_select');
                   } else {
                     useUIStore.getState().setCannonFiringStep(nextState?.cannonFireState?.resolved ? 'resolved' : 'drawing');
+                    useUIStore.getState().setShowCannonOverlay(true);
                   }
                 }
               }
@@ -171,15 +174,14 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                   to: event.hexCoord,
                 });
               } else if (uiState.cannonFiringStep === 'path_select' && state.cannonFireState) {
-                // Pick a path that passes through this hex
+                // Preview a path that passes through this hex
                 const cannon = state.units.get(state.selectedUnitId);
                 if (cannon) {
                   const allPaths = getShortestPaths(cannon.position, state.cannonFireState.targetCoord);
                   const clickedKey = coordToKey(event.hexCoord);
                   const matchingPath = allPaths.find(p => p.some(h => coordToKey(h) === clickedKey));
                   if (matchingPath) {
-                    dispatch({ type: 'SELECT_CANNON_PATH', path: matchingPath });
-                    useUIStore.getState().setCannonFiringStep('drawing');
+                    useUIStore.getState().setPreviewCannonPath(matchingPath);
                   }
                 }
               }
@@ -275,23 +277,40 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
               } else if (firingStep === 'path_select' && state.cannonFireState) {
                 // Show all possible path hexes
                 const allPaths = getShortestPaths(cannon.position, state.cannonFireState.targetCoord);
-                const pathHexSet = new Set<string>();
-                const pathHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+                const previewPath = uiState.previewCannonPath;
+                const previewKeys = previewPath ? new Set(previewPath.map(h => coordToKey(h))) : null;
+
+                // Show non-preview paths dimly
+                const dimHexSet = new Set<string>();
+                const dimHexes: import('@battle-masters/game-logic').HexCoord[] = [];
                 for (const path of allPaths) {
                   for (const hex of path) {
                     const key = coordToKey(hex);
-                    if (!pathHexSet.has(key)) {
-                      pathHexSet.add(key);
-                      pathHexes.push(hex);
+                    if (!dimHexSet.has(key) && (!previewKeys || !previewKeys.has(key))) {
+                      dimHexSet.add(key);
+                      dimHexes.push(hex);
                     }
                   }
                 }
-                highlights.showCannonPathHighlights(pathHexes);
+                highlights.showCannonPathHighlights(dimHexes);
+
+                // Show preview path brightly
+                if (previewPath) {
+                  highlights.showCannonPathPreviewHighlights(previewPath);
+                }
+
                 highlights.showAttackHighlights([state.cannonFireState.targetCoord]);
               } else if ((firingStep === 'drawing' || firingStep === 'resolved') && state.cannonFireState) {
-                // Show the selected path and placed tiles
-                highlights.showCannonPathHighlights(state.cannonFireState.path);
+                // Show the selected path (unvisited hexes only)
+                const visitedKeys = new Set(state.cannonFireState.placedTiles.map(pt => coordToKey(pt.coord)));
+                const unvisitedPath = state.cannonFireState.path.filter(h => !visitedKeys.has(coordToKey(h)));
+                highlights.showCannonPathHighlights(unvisitedPath);
                 highlights.showAttackHighlights([state.cannonFireState.targetCoord]);
+
+                // Show placed tile markers with type-specific colors
+                for (const pt of state.cannonFireState.placedTiles) {
+                  highlights.showCannonTileHighlight(pt.coord, pt.tile.type);
+                }
               }
             }
           }

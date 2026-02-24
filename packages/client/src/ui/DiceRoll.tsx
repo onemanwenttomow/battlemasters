@@ -23,7 +23,7 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   if (!showDiceRoll || !state || lastCombatResultIndex === null) return null;
 
   const event = state.combatLog[lastCombatResultIndex];
-  if (!event) return null;
+  if (!event || event.type !== 'melee') return null;
 
   const isCharge = combatEffectInfo?.isCharge ?? false;
 

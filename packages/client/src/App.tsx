@@ -8,6 +8,7 @@ import { UnitPanel } from './ui/UnitPanel';
 import { CombatLog } from './ui/CombatLog';
 import { DiceRoll } from './ui/DiceRoll';
 import { CombatDialog } from './ui/CombatDialog';
+import { CannonFireOverlay } from './ui/CannonFireOverlay';
 import { VictoryScreen } from './ui/VictoryScreen';
 
 function GameScreen() {
@@ -36,6 +37,7 @@ function GameScreen() {
       <CombatLog />
       <CombatDialog />
       <DiceRoll onDismiss={handleDiceRollDismiss} />
+      <CannonFireOverlay effects={engineRef.current?.effects ?? null} />
       {state?.currentPhase === 'game_over' && <VictoryScreen />}
     </div>
   );

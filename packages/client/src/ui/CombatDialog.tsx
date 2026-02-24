@@ -42,7 +42,7 @@ export function CombatDialog() {
       const isCharge = state.currentCard?.special === 'CHARGE';
       showDice(nextState.combatLog.length - 1, {
         defenderPosition: defenderPos,
-        damage: lastEvent?.result.damage ?? 0,
+        damage: (lastEvent?.type === 'melee' ? lastEvent.result.damage : 0),
         unitDestroyed,
         destroyedUnitId: unitDestroyed ? pendingAttack.defenderId : null,
         damagedUnitId: pendingAttack.defenderId,

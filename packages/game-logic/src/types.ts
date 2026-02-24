@@ -101,10 +101,25 @@ export interface CombatResult {
   unitDestroyed: boolean;
 }
 
-export interface CombatEvent {
+export interface MeleeCombatEvent {
+  type: 'melee';
   turnNumber: number;
   result: CombatResult;
+  attackerName: string;
+  defenderName: string;
 }
+
+export interface CannonFireEvent {
+  type: 'cannon_fire';
+  turnNumber: number;
+  cannonName: string;
+  targetName: string | null;
+  targetDestroyed: boolean;
+  misfire: boolean;
+  tileResults: CannonTileResult[];
+}
+
+export type CombatEvent = MeleeCombatEvent | CannonFireEvent;
 
 // ─── Battle Cards ──────────────────────────────────────────────
 
@@ -137,6 +152,13 @@ export interface CannonTile {
   type: CannonTileType;
 }
 
+export interface CannonTileResult {
+  tileType: CannonTileType;
+  unitHit: string | null;   // unit name if hit
+  damage: number;
+  destroyed: boolean;
+}
+
 export interface CannonFireState {
   cannonUnitId: string;
   targetCoord: HexCoord;
@@ -145,6 +167,7 @@ export interface CannonFireState {
   tileIndex: number;
   path: HexCoord[];                  // intermediate hexes from cannon to target (exclusive of both endpoints)
   placedTiles: { coord: HexCoord; tile: CannonTile }[];
+  tileResults: CannonTileResult[];   // per-tile hit tracking for combat log
   pathStepIndex: number;
   resolved: boolean;
   misfire: boolean;

@@ -5,14 +5,14 @@ import { getShortestPaths, hexDistance } from '../src/hex';
 import { GameState, coordToKey } from '../src/types';
 
 describe('createCannonTileDeck', () => {
-  it('creates 10 tiles (4 flying, 3 bouncing, 3 explosion)', () => {
+  it('creates 9 tiles (4 flying, 3 bouncing, 2 explosion)', () => {
     const rng = createRNG(42);
     const deck = createCannonTileDeck(rng);
 
-    expect(deck).toHaveLength(10);
+    expect(deck).toHaveLength(9);
     expect(deck.filter(t => t.type === 'flying')).toHaveLength(4);
     expect(deck.filter(t => t.type === 'bouncing')).toHaveLength(3);
-    expect(deck.filter(t => t.type === 'explosion')).toHaveLength(3);
+    expect(deck.filter(t => t.type === 'explosion')).toHaveLength(2);
   });
 
   it('shuffles with different seeds produce different orders', () => {
@@ -21,8 +21,8 @@ describe('createCannonTileDeck', () => {
     const order1 = deck1.map(t => t.type).join(',');
     const order2 = deck2.map(t => t.type).join(',');
     // Just verify they both run correctly
-    expect(deck1).toHaveLength(10);
-    expect(deck2).toHaveLength(10);
+    expect(deck1).toHaveLength(9);
+    expect(deck2).toHaveLength(9);
   });
 });
 
@@ -185,12 +185,11 @@ describe('cannon fire phase', () => {
       let s = applyAction(state, { type: 'DRAW_CARD' });
       const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
 
-      // Place an enemy adjacent to cannon
+      // Place an enemy adjacent to cannon (use empty hex to avoid collision)
       const enemy = [...s.units.values()].find(u => u.faction === 'chaos')!;
-      const adjCoord = { col: 5, row: 5 }; // adjacent to cannon at 5,4
+      const adjCoord = { col: 5, row: 3 }; // adjacent to cannon at 5,4, no other unit here
       enemy.position = { ...adjCoord };
 
-      // Force the tile deck so first tile is NOT explosion (no misfire)
       s = applyAction(s, { type: 'FIRE_CANNON', targetCoord: adjCoord });
 
       expect(s.cannonFireState).not.toBeNull();
@@ -208,9 +207,9 @@ describe('cannon fire phase', () => {
       let s = applyAction(state, { type: 'DRAW_CARD' });
       const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
 
-      // Place enemy adjacent
+      // Place enemy adjacent (use empty hex to avoid collision)
       const enemy = [...s.units.values()].find(u => u.faction === 'chaos')!;
-      const adjCoord = { col: 5, row: 5 };
+      const adjCoord = { col: 5, row: 3 };
       enemy.position = { ...adjCoord };
 
       // We need to force a misfire. Manipulate seed to get explosion first.
@@ -246,7 +245,7 @@ describe('cannon fire phase', () => {
       expect(result.cannonFireState).not.toBeNull();
       expect(result.cannonFireState!.adjacentShot).toBe(false);
       expect(result.cannonFireState!.resolved).toBe(false);
-      expect(result.cannonFireState!.tileDeck).toHaveLength(10);
+      expect(result.cannonFireState!.tileDeck).toHaveLength(9);
     });
 
     it('auto-selects path when only one exists', () => {

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HexCoord } from '@battle-masters/game-logic';
 import { hexToWorld, HEX_SIZE } from '@battle-masters/game-logic';
 
-type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'cannonRange' | 'cannonPath';
+type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'cannonRange' | 'cannonPath' | 'cannonPathPreview' | 'cannonTileFlying' | 'cannonTileBouncing' | 'cannonTileExplosion';
 
 const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   move: 0x44aaff,
@@ -11,6 +11,10 @@ const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   activatable: 0xffcc00,
   cannonRange: 0xff8844,
   cannonPath: 0xff6622,
+  cannonPathPreview: 0xff8844,
+  cannonTileFlying: 0x4488ff,
+  cannonTileBouncing: 0xffaa44,
+  cannonTileExplosion: 0xff2222,
 };
 
 export class Highlights {
@@ -69,10 +73,11 @@ export class Highlights {
     shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
+    const baseOpacity = type === 'cannonPathPreview' ? 0.5 : 0.3;
     const material = new THREE.MeshBasicMaterial({
       color: HIGHLIGHT_COLORS[type],
       transparent: true,
-      opacity: 0.3,
+      opacity: baseOpacity,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
@@ -91,7 +96,14 @@ export class Highlights {
     this.time += deltaTime;
     for (const mesh of this.meshes) {
       const mat = mesh.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.2 + Math.sin(this.time * 3) * 0.1;
+      const type = mesh.userData.highlightType as HighlightType;
+      if (type === 'cannonPathPreview') {
+        mat.opacity = 0.4 + Math.sin(this.time * 4) * 0.15;
+      } else if (type === 'cannonPath') {
+        mat.opacity = 0.1 + Math.sin(this.time * 3) * 0.05;
+      } else {
+        mat.opacity = 0.2 + Math.sin(this.time * 3) * 0.1;
+      }
     }
   }
 
@@ -107,6 +119,23 @@ export class Highlights {
     for (const hex of hexes) {
       this.addHighlight(hex, 'cannonPath');
     }
+  }
+
+  /** Show cannon path preview highlights (selected/hovered path) */
+  showCannonPathPreviewHighlights(hexes: HexCoord[]) {
+    for (const hex of hexes) {
+      this.addHighlight(hex, 'cannonPathPreview');
+    }
+  }
+
+  /** Show a cannon tile highlight with type-specific color */
+  showCannonTileHighlight(hex: HexCoord, tileType: 'flying' | 'bouncing' | 'explosion') {
+    const highlightMap: Record<string, HighlightType> = {
+      flying: 'cannonTileFlying',
+      bouncing: 'cannonTileBouncing',
+      explosion: 'cannonTileExplosion',
+    };
+    this.addHighlight(hex, highlightMap[tileType]);
   }
 
   /** Remove all highlights */

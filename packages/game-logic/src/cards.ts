@@ -133,12 +133,12 @@ export function reshuffleDeck(discard: BattleCard[], rng: () => number): BattleC
   return shuffleDeck(discard, rng);
 }
 
-/** Create the 10-tile cannon deck: 4 flying, 3 bouncing, 3 explosion, shuffled */
+/** Create the 9-tile cannon deck: 4 flying, 3 bouncing, 2 explosion, shuffled */
 export function createCannonTileDeck(rng: () => number): CannonTile[] {
   const deck: CannonTile[] = [
     { type: 'flying' }, { type: 'flying' }, { type: 'flying' }, { type: 'flying' },
     { type: 'bouncing' }, { type: 'bouncing' }, { type: 'bouncing' },
-    { type: 'explosion' }, { type: 'explosion' }, { type: 'explosion' },
+    { type: 'explosion' }, { type: 'explosion' },
   ];
   // Fisher-Yates shuffle
   for (let i = deck.length - 1; i > 0; i--) {

@@ -19,6 +19,9 @@ export function GameHUD() {
   const toggleCoords = useUIStore((s) => s.toggleCoords);
   const cannonFiringStep = useUIStore((s) => s.cannonFiringStep);
   const setCannonFiringStep = useUIStore((s) => s.setCannonFiringStep);
+  const previewCannonPath = useUIStore((s) => s.previewCannonPath);
+  const setPreviewCannonPath = useUIStore((s) => s.setPreviewCannonPath);
+  const setShowCannonOverlay = useUIStore((s) => s.setShowCannonOverlay);
 
   if (!state) return null;
 
@@ -84,7 +87,7 @@ export function GameHUD() {
             <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
               {cannonFiringStep === 'idle' && 'Move or Fire'}
               {cannonFiringStep === 'targeting' && 'Select Target'}
-              {cannonFiringStep === 'path_select' && 'Select Path'}
+              {cannonFiringStep === 'path_select' && (previewCannonPath ? 'Confirm or pick another' : 'Click a hex to preview path')}
               {cannonFiringStep === 'drawing' && `Drawing Tiles${state.cannonFireState ? ` (${state.cannonFireState.placedTiles.length})` : ''}`}
               {cannonFiringStep === 'resolved' && (
                 state.cannonFireState?.misfire ? 'MISFIRE!' :
@@ -163,10 +166,26 @@ export function GameHUD() {
                 Cancel
               </button>
             )}
-            {cannonFiringStep === 'drawing' && state.cannonFireState && !state.cannonFireState.resolved && (
-              <button onClick={() => dispatch({ type: 'DRAW_CANNON_TILE' })} style={btnStyle('#ff8844')}>
-                Draw Tile
-              </button>
+            {cannonFiringStep === 'path_select' && (
+              <>
+                {previewCannonPath && (
+                  <button onClick={() => {
+                    dispatch({ type: 'SELECT_CANNON_PATH', path: previewCannonPath });
+                    setCannonFiringStep('drawing');
+                    setShowCannonOverlay(true);
+                    setPreviewCannonPath(null);
+                  }} style={btnStyle('#ff8844')}>
+                    Confirm Path
+                  </button>
+                )}
+                <button onClick={() => {
+                  setPreviewCannonPath(null);
+                  setCannonFiringStep('idle');
+                  dispatch({ type: 'END_CANNON_FIRE' });
+                }} style={btnStyle('#888')}>
+                  Cancel
+                </button>
+              </>
             )}
             {(cannonFiringStep === 'resolved' || (state.cannonFireState && state.cannonFireState.resolved)) && (
               <button onClick={() => {

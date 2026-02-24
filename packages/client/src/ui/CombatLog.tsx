@@ -1,11 +1,90 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
+import type { CombatEvent, MeleeCombatEvent, CannonFireEvent } from '@battle-masters/game-logic';
 
 const DIE_SYMBOLS = {
   skull: '\u2620',
   shield: '\u26E8',
   blank: '\u25CB',
 };
+
+const TILE_SYMBOLS: Record<string, string> = {
+  flying: '\u27A4',
+  bouncing: '\u26AB',
+  explosion: '\u2738',
+};
+
+const TILE_COLORS: Record<string, string> = {
+  flying: '#4488ff',
+  bouncing: '#ffaa44',
+  explosion: '#ff3333',
+};
+
+function MeleeCombatEntry({ event }: { event: MeleeCombatEvent }) {
+  return (
+    <>
+      <div style={{ color: '#aaa', fontSize: '0.65rem' }}>
+        <span style={{ color: '#ff8844' }}>{event.attackerName}</span>
+        {' vs '}
+        <span style={{ color: '#4488ff' }}>{event.defenderName}</span>
+      </div>
+      <div>
+        <span style={{ color: '#ff8844' }}>
+          ATK: {event.result.attackerRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
+        </span>
+        {' '}
+        <span style={{ color: '#4488ff' }}>
+          DEF: {event.result.defenderRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
+        </span>
+      </div>
+      <div>
+        {event.result.damage > 0 ? (
+          <span style={{ color: '#ff4444' }}>
+            {event.result.damage} damage{event.result.unitDestroyed ? ' - DESTROYED!' : ''}
+          </span>
+        ) : (
+          <span style={{ color: '#44cc44' }}>Blocked!</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CannonFireEntry({ event }: { event: CannonFireEvent }) {
+  return (
+    <>
+      <div style={{ color: '#aaa', fontSize: '0.65rem' }}>
+        <span style={{ color: '#ff8844' }}>{event.cannonName}</span>
+        {event.targetName ? (
+          <>{' \u2192 '}<span style={{ color: '#4488ff' }}>{event.targetName}</span></>
+        ) : (
+          <>{' \u2192 '}<span style={{ color: '#666' }}>empty hex</span></>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        {event.tileResults.map((tr, i) => (
+          <span key={i} style={{ color: TILE_COLORS[tr.tileType] }}>
+            {TILE_SYMBOLS[tr.tileType]}
+          </span>
+        ))}
+      </div>
+      <div>
+        {event.misfire ? (
+          <span style={{ color: '#ff3333' }}>MISFIRE!</span>
+        ) : event.targetDestroyed ? (
+          <span style={{ color: '#ff4444' }}>Target destroyed!</span>
+        ) : (
+          <span style={{ color: '#aaa' }}>Shot stopped</span>
+        )}
+        {event.tileResults.some(tr => tr.unitHit && !tr.destroyed) && (
+          <span style={{ color: '#ffaa44', marginLeft: 4 }}>
+            {event.tileResults.filter(tr => tr.unitHit && tr.damage > 0).map(tr => `${tr.unitHit} hit`).join(', ')}
+          </span>
+        )}
+      </div>
+    </>
+  );
+}
 
 export function CombatLog() {
   const state = useGameStore((s) => s.state);
@@ -50,31 +129,18 @@ export function CombatLog() {
           {state.combatLog.length === 0 && (
             <div style={{ color: '#666', textAlign: 'center' }}>No combat yet</div>
           )}
-          {[...state.combatLog].reverse().slice(0, 10).map((event, i) => (
+          {[...state.combatLog].reverse().slice(0, 10).map((event: CombatEvent, i: number) => (
             <div key={i} style={{
               borderBottom: '1px solid #222',
               padding: '4px 0',
               color: '#ccc',
             }}>
               <div style={{ color: '#888', fontSize: '0.65rem' }}>Turn {event.turnNumber}</div>
-              <div>
-                <span style={{ color: '#ff8844' }}>
-                  ATK: {event.result.attackerRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
-                </span>
-                {' '}
-                <span style={{ color: '#4488ff' }}>
-                  DEF: {event.result.defenderRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
-                </span>
-              </div>
-              <div>
-                {event.result.damage > 0 ? (
-                  <span style={{ color: '#ff4444' }}>
-                    {event.result.damage} damage{event.result.unitDestroyed ? ' - DESTROYED!' : ''}
-                  </span>
-                ) : (
-                  <span style={{ color: '#44cc44' }}>Blocked!</span>
-                )}
-              </div>
+              {event.type === 'melee' ? (
+                <MeleeCombatEntry event={event} />
+              ) : (
+                <CannonFireEntry event={event} />
+              )}
             </div>
           ))}
         </div>

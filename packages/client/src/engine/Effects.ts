@@ -72,6 +72,87 @@ export class Effects {
     }
   }
 
+  /** Spawn cannon fire burst at cannon position */
+  spawnCannonFireEffect(coord: HexCoord) {
+    const pos = hexToWorld(coord);
+    const count = 12;
+
+    for (let i = 0; i < count; i++) {
+      const geo = new THREE.SphereGeometry(0.05, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0xff8844 : 0xffcc44,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(pos.x, 0.6, pos.z);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 3;
+      const velocity = new THREE.Vector3(
+        Math.cos(angle) * speed,
+        3 + Math.random() * 2,
+        Math.sin(angle) * speed
+      );
+
+      this.group.add(mesh);
+      this.particles.push({ mesh, velocity, life: 0, maxLife: 0.4 + Math.random() * 0.3 });
+    }
+  }
+
+  /** Spawn explosion effect (large red/orange burst) */
+  spawnExplosionEffect(coord: HexCoord) {
+    const pos = hexToWorld(coord);
+    const count = 20;
+
+    for (let i = 0; i < count; i++) {
+      const geo = new THREE.SphereGeometry(0.07, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0xff3333 : 0xff6600,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(pos.x, 0.4, pos.z);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 4;
+      const velocity = new THREE.Vector3(
+        Math.cos(angle) * speed,
+        2 + Math.random() * 3,
+        Math.sin(angle) * speed
+      );
+
+      this.group.add(mesh);
+      this.particles.push({ mesh, velocity, life: 0, maxLife: 1.0 + Math.random() * 0.5 });
+    }
+  }
+
+  /** Spawn bouncing impact effect (quick yellow burst) */
+  spawnBouncingEffect(coord: HexCoord) {
+    const pos = hexToWorld(coord);
+    const count = 6;
+
+    for (let i = 0; i < count; i++) {
+      const geo = new THREE.SphereGeometry(0.04, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffcc00,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(pos.x, 0.5, pos.z);
+
+      const angle = (Math.PI * 2 / count) * i + Math.random() * 0.4;
+      const speed = 1.5 + Math.random() * 1.5;
+      const velocity = new THREE.Vector3(
+        Math.cos(angle) * speed,
+        2 + Math.random() * 1.5,
+        Math.sin(angle) * speed
+      );
+
+      this.group.add(mesh);
+      this.particles.push({ mesh, velocity, life: 0, maxLife: 0.3 + Math.random() * 0.2 });
+    }
+  }
+
   /** Update particle simulation */
   update(deltaTime: number) {
     const gravity = -9.8;

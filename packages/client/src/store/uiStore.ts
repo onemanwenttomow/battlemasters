@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { HexCoord } from '@battle-masters/game-logic';
 
 type Screen = 'menu' | 'game' | 'victory';
 
@@ -28,6 +29,8 @@ interface UIStore {
   combatEffectInfo: CombatEffectInfo | null;
   inspectedUnitId: string | null;
   cannonFiringStep: CannonFiringStep;
+  showCannonOverlay: boolean;
+  previewCannonPath: HexCoord[] | null;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -38,6 +41,8 @@ interface UIStore {
   setPendingAttack: (attackerId: string, defenderId: string) => void;
   clearPendingAttack: () => void;
   setCannonFiringStep: (step: CannonFiringStep) => void;
+  setShowCannonOverlay: (show: boolean) => void;
+  setPreviewCannonPath: (path: HexCoord[] | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -50,6 +55,8 @@ export const useUIStore = create<UIStore>((set) => ({
   combatEffectInfo: null,
   inspectedUnitId: null,
   cannonFiringStep: 'idle',
+  showCannonOverlay: false,
+  previewCannonPath: null,
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -60,4 +67,6 @@ export const useUIStore = create<UIStore>((set) => ({
   setPendingAttack: (attackerId, defenderId) => set({ pendingAttack: { attackerId, defenderId } }),
   clearPendingAttack: () => set({ pendingAttack: null }),
   setCannonFiringStep: (step) => set({ cannonFiringStep: step }),
+  setShowCannonOverlay: (show) => set({ showCannonOverlay: show }),
+  setPreviewCannonPath: (path) => set({ previewCannonPath: path }),
 }));
