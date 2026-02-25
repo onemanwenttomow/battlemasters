@@ -57,7 +57,7 @@ export function createBattleDeck(): BattleCard[] {
   for (let i = 0; i < 2; i++) deck.push(card('imperial', ['mighty_cannon'], 1, 'CANNON_FIRE'));
 
   // Imperial whole army move (1 card)
-  deck.push(card('imperial', ['men_at_arms', 'archer', 'crossbowman', 'imperial_knights', 'lord_knights', 'mighty_cannon'], 99, 'ALL_MOVE'));
+  deck.push(card('imperial', ['men_at_arms', 'archer', 'crossbowman', 'imperial_knights', 'lord_knights'], 99, 'ALL_MOVE'));
 
   // ─── Chaos Cards ──────────────────────────────────────────
 
@@ -89,7 +89,7 @@ export function createBattleDeck(): BattleCard[] {
   for (let i = 0; i < 2; i++) deck.push(card('chaos', ['ogre_champion'], 1, 'OGRE_RAMPAGE'));
 
   // Chaos whole army move (1 card)
-  deck.push(card('chaos', ['goblin', 'beastman', 'chaos_bowman', 'orc', 'chaos_warrior', 'wolf_rider', 'champions_of_chaos', 'ogre_champion'], 99, 'ALL_MOVE'));
+  deck.push(card('chaos', ['goblin', 'beastman', 'chaos_bowman', 'orc', 'chaos_warrior', 'wolf_rider', 'champions_of_chaos'], 99, 'ALL_MOVE'));
 
   return deck;
 }
