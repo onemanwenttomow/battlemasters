@@ -270,9 +270,9 @@ export class DiceScene {
     );
 
     body.angularVelocity.set(
-      (Math.random() - 0.5) * 15,
-      (Math.random() - 0.5) * 15,
-      (Math.random() - 0.5) * 15,
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 30,
     );
 
     this.world.addBody(body);

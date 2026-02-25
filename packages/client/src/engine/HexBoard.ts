@@ -5,6 +5,7 @@ import {
   TerrainType,
   coordToKey,
   getNeighbors,
+  getNeighborDirection,
 } from "@battle-masters/game-logic";
 import { hexToWorld, HEX_SIZE } from "@battle-masters/game-logic";
 import { AssetLoader } from "./AssetLoader";
@@ -40,7 +41,7 @@ const TERRAIN_MODEL_MAP: Partial<Record<TerrainType, string[]>> = {
 /** Terrain types that should have their materials recolored */
 const TERRAIN_TINT: Partial<Record<TerrainType, number>> = {
   marsh: 0x4a6a3a,
-  ditch: 0x6a6050,
+  ditch: 0x8a7a55,
   river: 0x1155cc,
   ford: 0x1155cc,
 };
@@ -399,10 +400,94 @@ export class HexBoard {
         }
       }
 
+      // Place ditch fortification stakes on fortified edges
+      if (tile.terrain === "ditch") {
+        const ditchModels = this.createDitchFortifications(tile, pos);
+        for (const m of ditchModels) {
+          this.group.add(m);
+          models.push(m);
+        }
+      }
+
       if (models.length > 0) {
         this.terrainModels.set(key, models);
       }
     }
+  }
+
+  /**
+   * Create procedural wooden fence fortifications on the 4 fortified edges of a ditch tile.
+   * Orientation determines which pair of opposite sides are open (no fence).
+   * Simple fence: vertical posts connected by two horizontal rails.
+   */
+  private createDitchFortifications(
+    tile: HexTile,
+    pos: { x: number; z: number },
+  ): THREE.Group[] {
+    const orientation = tile.orientation ?? 0;
+    const openDirs = new Set([orientation, (orientation + 3) % 6]);
+
+    const results: THREE.Group[] = [];
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x6b4226,
+      roughness: 0.85,
+      metalness: 0.0,
+    });
+
+    for (let dir = 0; dir < 6; dir++) {
+      if (openDirs.has(dir)) continue;
+
+      const group = new THREE.Group();
+
+      // Edge midpoint angle in world space (dir 0=E, each 60° apart)
+      // In Three.js XZ plane: +X=East, +Z=South, so negate Z for sin
+      const edgeAngle = (Math.PI / 3) * dir;
+      const edgeDist = HEX_SIZE * 0.78;
+
+      const cx = pos.x + Math.cos(edgeAngle) * edgeDist;
+      const cz = pos.z - Math.sin(edgeAngle) * edgeDist;
+
+      // Direction along the edge (perpendicular to outward direction)
+      const alongAngle = edgeAngle + Math.PI / 2;
+      const edgeHalfLen = HEX_SIZE * 0.42;
+
+      // Fence rotation: the rail should run along the edge
+      const fenceRotY = -alongAngle;
+
+      // 4 vertical posts evenly spaced along the edge
+      const postCount = 4;
+      const postHeight = 0.28;
+      const postGeo = new THREE.BoxGeometry(0.035, postHeight, 0.035);
+
+      for (let i = 0; i < postCount; i++) {
+        const t = ((i / (postCount - 1)) - 0.5) * 2 * edgeHalfLen;
+        const px = cx + Math.cos(alongAngle) * t;
+        const pz = cz - Math.sin(alongAngle) * t;
+
+        const post = new THREE.Mesh(postGeo, woodMat);
+        post.position.set(px, this.tileTopY + postHeight / 2, pz);
+        post.castShadow = true;
+        post.receiveShadow = true;
+        group.add(post);
+      }
+
+      // Two horizontal rails
+      const railLen = edgeHalfLen * 2;
+      const railGeo = new THREE.BoxGeometry(railLen, 0.025, 0.025);
+
+      for (const railY of [0.1, 0.22]) {
+        const rail = new THREE.Mesh(railGeo, woodMat);
+        rail.position.set(cx, this.tileTopY + railY, cz);
+        rail.rotation.y = fenceRotY;
+        rail.castShadow = true;
+        rail.receiveShadow = true;
+        group.add(rail);
+      }
+
+      results.push(group);
+    }
+
+    return results;
   }
 
   /** Scatter small decorations (flowers, grass, bushes) on eligible tiles */

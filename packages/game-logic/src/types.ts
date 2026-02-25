@@ -78,6 +78,7 @@ export interface HexTile {
   coord: HexCoord;
   terrain: TerrainType;
   elevation: number;
+  orientation?: number; // 0=E/W open, 1=NE/SW open, 2=NW/SE open (for ditch)
 }
 
 export interface BoardState {

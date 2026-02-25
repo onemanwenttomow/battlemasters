@@ -5,6 +5,9 @@ import {
   TerrainType,
   coordToKey,
 } from "./types.js";
+import { isFortifiedEdge } from "./hex.js";
+import { getUnitDefinition } from "./units.js";
+import type { UnitType } from "./types.js";
 
 export const BOARD_WIDTH = 13;
 export const BOARD_HEIGHT = 12;
@@ -21,7 +24,7 @@ const BOARD_LAYOUT: string[][] = [
   ["ro", "g", "ri", "ri", "ro", "to", "ri", "ri", "ro", "g", "ri", "ri"],
   ["ro", "ri", "ri", "g", "ro", "ri", "ri", "g", "ro", "ri", "ri", "g", "ro"],
   ["ro", "g", "g", "ro", "ro", "g", "g", "ro", "ro", "g", "g", "ro"],
-  ["g", "ro", "g", "ro", "g", "ro", "sw", "ro", "g", "ro", "g", "ro", "g"],
+  ["g", "ro", "g", "ro", "g", "ro", "sw", "ro", "di", "ro", "g", "ro", "g"],
   ["g", "ro", "ro", "g", "g", "ro", "ro", "g", "g", "ro", "ro", "g"],
   ["g", "g", "ro", "g", "g", "g", "ro", "g", "g", "g", "ro", "g", "g"],
   ["g", "g", "ro", "g", "g", "g", "ro", "g", "g", "g", "ro", "g"],
@@ -59,11 +62,16 @@ export function createDefaultBoard(): BoardState {
     const rowData = BOARD_LAYOUT[row];
     for (let col = 0; col < rowData.length; col++) {
       const coord: HexCoord = { col, row };
-      tiles.set(coordToKey(coord), {
+      const terrain = mapTerrain(rowData[col], row);
+      const tile: HexTile = {
         coord,
-        terrain: mapTerrain(rowData[col], row),
+        terrain,
         elevation: 0,
-      });
+      };
+      if (terrain === 'ditch') {
+        tile.orientation = 0; // E/W open by default
+      }
+      tiles.set(coordToKey(coord), tile);
     }
   }
 
@@ -92,8 +100,6 @@ export function getDefenseModifier(terrain: TerrainType): number {
   switch (terrain) {
     case "tower":
       return 1;
-    case "ditch":
-      return 1;
     default:
       return 0;
   }
@@ -117,4 +123,27 @@ export function getAttackerTerrainBonus(terrain: TerrainType): number {
     default:
       return 0;
   }
+}
+
+/** Get ditch attack modifier: -1 when attacking across a fortified ditch edge (unless ranged unit) */
+export function getDitchAttackModifier(
+  board: BoardState,
+  attackerPos: HexCoord,
+  defenderPos: HexCoord,
+  attackerType: UnitType,
+): number {
+  if (!isFortifiedEdge(board, attackerPos, defenderPos)) return 0;
+  const def = getUnitDefinition(attackerType);
+  if (def.special?.includes('ranged')) return 0;
+  return -1;
+}
+
+/** Get ditch defense modifier: +1 when attacked across a fortified ditch edge */
+export function getDitchDefenseModifier(
+  board: BoardState,
+  attackerPos: HexCoord,
+  defenderPos: HexCoord,
+): number {
+  if (!isFortifiedEdge(board, attackerPos, defenderPos)) return 0;
+  return 1;
 }

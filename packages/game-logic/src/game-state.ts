@@ -3,7 +3,7 @@ import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter, getUnitDefinition } from './units.js';
 import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
 import { resolveCombat, resolveCombatWithRolls } from './combat.js';
-import { getTile } from './board.js';
+import { getTile, getDitchAttackModifier, getDitchDefenseModifier } from './board.js';
 import { validateAction } from './validation.js';
 import { hexDistance, getShortestPaths } from './hex.js';
 
@@ -240,6 +240,11 @@ function handleMoveUnit(state: GameState, unitId: string, to: HexCoord): GameSta
     return endCannonFireTurn(newState);
   }
 
+  // If moving during ogre rampage, auto-end this sub-card activation
+  if (newState.currentPhase === 'ogre_rampage' && newState.currentOgreSubCard?.type === 'ogre_move') {
+    return handleEndOgreActivation(newState);
+  }
+
   return newState;
 }
 
@@ -262,7 +267,10 @@ function handleAttack(
 
   const chargeBonus = state.currentCard?.special === 'CHARGE' ? 1 : 0;
 
-  const context = { attackerTerrain, defenderTerrain, distance, chargeBonus };
+  const ditchAttackMod = getDitchAttackModifier(state.board, attacker.position, defender.position, attacker.definitionType);
+  const ditchDefenseMod = getDitchDefenseModifier(state.board, attacker.position, defender.position);
+
+  const context = { attackerTerrain, defenderTerrain, distance, chargeBonus, ditchAttackModifier: ditchAttackMod, ditchDefenseModifier: ditchDefenseMod };
 
   const result = (providedAttackerRolls && providedDefenderRolls)
     ? resolveCombatWithRolls(attacker, defender, providedAttackerRolls, providedDefenderRolls)
@@ -291,6 +299,17 @@ function handleAttack(
   if (winner) {
     newState.winner = winner;
     newState.currentPhase = 'game_over';
+  }
+
+  // If attacking during ogre rampage, auto-end this sub-card activation
+  if (newState.currentPhase === 'ogre_rampage' && newState.currentOgreSubCard?.type === 'ogre_attack') {
+    return handleEndOgreActivation(newState);
+  }
+
+  // If attacking during activation, auto-end this unit's activation
+  // (a unit can't do anything after attacking)
+  if (newState.currentPhase === 'activation') {
+    return handleEndActivation(newState);
   }
 
   return newState;

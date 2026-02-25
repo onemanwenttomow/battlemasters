@@ -73,7 +73,7 @@ export class Highlights {
     shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
-    const baseOpacity = type === 'cannonPathPreview' ? 0.5 : 0.3;
+    const baseOpacity = type === 'cannonPathPreview' ? 0.5 : 0.5;
     const material = new THREE.MeshBasicMaterial({
       color: HIGHLIGHT_COLORS[type],
       transparent: true,
@@ -102,7 +102,7 @@ export class Highlights {
       } else if (type === 'cannonPath') {
         mat.opacity = 0.1 + Math.sin(this.time * 3) * 0.05;
       } else {
-        mat.opacity = 0.2 + Math.sin(this.time * 3) * 0.1;
+        mat.opacity = 0.4 + Math.sin(this.time * 3) * 0.15;
       }
     }
   }

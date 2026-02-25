@@ -38,8 +38,8 @@ export function createBattleDeck(): BattleCard[] {
   // Men at Arms cards (8 cards, activate 2 each)
   for (let i = 0; i < 8; i++) deck.push(card('imperial', ['men_at_arms'], 2));
 
-  // Archer cards (4 cards, activate 1)
-  for (let i = 0; i < 4; i++) deck.push(card('imperial', ['archer'], 1));
+  // Archer cards (4 cards, activate 2)
+  for (let i = 0; i < 4; i++) deck.push(card('imperial', ['archer'], 2));
 
   // Crossbowman cards (2 cards, activate 1)
   for (let i = 0; i < 2; i++) deck.push(card('imperial', ['crossbowman'], 1));
@@ -67,17 +67,17 @@ export function createBattleDeck(): BattleCard[] {
   // Beastman cards (4 cards, activate 2)
   for (let i = 0; i < 4; i++) deck.push(card('chaos', ['beastman'], 2));
 
-  // Chaos Bowman cards (3 cards, activate 1)
-  for (let i = 0; i < 3; i++) deck.push(card('chaos', ['chaos_bowman'], 1));
+  // Chaos Bowman cards (3 cards, activate 2)
+  for (let i = 0; i < 3; i++) deck.push(card('chaos', ['chaos_bowman'], 2));
 
   // Orc cards (4 cards, activate 2)
   for (let i = 0; i < 4; i++) deck.push(card('chaos', ['orc'], 2));
 
-  // Chaos Warrior cards (3 cards, activate 1)
-  for (let i = 0; i < 3; i++) deck.push(card('chaos', ['chaos_warrior'], 1));
+  // Chaos Warrior cards (3 cards, activate 2)
+  for (let i = 0; i < 3; i++) deck.push(card('chaos', ['chaos_warrior'], 2));
 
-  // Wolf Rider cards (2 cards, activate 1)
-  for (let i = 0; i < 2; i++) deck.push(card('chaos', ['wolf_rider'], 1));
+  // Wolf Rider cards (2 cards, activate 2)
+  for (let i = 0; i < 2; i++) deck.push(card('chaos', ['wolf_rider'], 2));
 
   // Wolf Rider double move (1 card)
   deck.push(card('chaos', ['wolf_rider'], 2, 'WOLF_RIDER_DOUBLE_MOVE'));

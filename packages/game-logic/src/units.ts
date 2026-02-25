@@ -6,7 +6,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   // Imperial Army
   men_at_arms: {
     type: 'men_at_arms',
-    name: 'Men at Arms',
+    name: 'Men-At-Arms',
     faction: 'imperial',
     hp: 3,
     combatValue: 3,
@@ -16,7 +16,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   archer: {
     type: 'archer',
-    name: 'Archer',
+    name: 'Imperial Archers',
     faction: 'imperial',
     hp: 3,
     combatValue: 3,
@@ -27,7 +27,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   crossbowman: {
     type: 'crossbowman',
-    name: 'Crossbowman',
+    name: 'Crossbowmen',
     faction: 'imperial',
     hp: 3,
     combatValue: 3,
@@ -49,7 +49,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   lord_knights: {
     type: 'lord_knights',
-    name: 'Lord Knights',
+    name: 'Lord Knights of the Empire',
     faction: 'imperial',
     hp: 3,
     combatValue: 5,
@@ -60,7 +60,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   mighty_cannon: {
     type: 'mighty_cannon',
-    name: 'Mighty Cannon',
+    name: 'The Mighty Cannon',
     faction: 'imperial',
     hp: 3,
     combatValue: 2,
@@ -73,7 +73,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   // Chaos Army
   goblin: {
     type: 'goblin',
-    name: 'Goblin',
+    name: 'Goblins',
     faction: 'chaos',
     hp: 3,
     combatValue: 2,
@@ -83,7 +83,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   beastman: {
     type: 'beastman',
-    name: 'Beastman',
+    name: 'Beastmen',
     faction: 'chaos',
     hp: 3,
     combatValue: 3,
@@ -93,7 +93,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   chaos_bowman: {
     type: 'chaos_bowman',
-    name: 'Chaos Bowman',
+    name: 'Chaos Archers',
     faction: 'chaos',
     hp: 3,
     combatValue: 2,
@@ -104,7 +104,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   orc: {
     type: 'orc',
-    name: 'Orc',
+    name: 'Orcs',
     faction: 'chaos',
     hp: 3,
     combatValue: 3,
@@ -114,7 +114,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   chaos_warrior: {
     type: 'chaos_warrior',
-    name: 'Chaos Warrior',
+    name: 'Chaos Warriors',
     faction: 'chaos',
     hp: 3,
     combatValue: 4,
@@ -124,10 +124,10 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   wolf_rider: {
     type: 'wolf_rider',
-    name: 'Wolf Rider',
+    name: 'Wolf Riders',
     faction: 'chaos',
     hp: 3,
-    combatValue: 3,
+    combatValue: 2,
     movement: 2,
     range: 1,
     special: ['no_tower'],
@@ -146,7 +146,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   ogre_champion: {
     type: 'ogre_champion',
-    name: 'Ogre Champion',
+    name: 'Ogre Champion of Grimorg',
     faction: 'chaos',
     hp: 6,
     combatValue: 4,

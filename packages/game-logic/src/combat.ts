@@ -40,6 +40,8 @@ export interface CombatContext {
   defenderTerrain: TerrainType;
   distance: number;
   chargeBonus?: number;
+  ditchAttackModifier?: number;
+  ditchDefenseModifier?: number;
 }
 
 /** Calculate the number of attack/defense dice for a combat */
@@ -56,8 +58,8 @@ export function getCombatDiceCounts(
   const attackerMeleeModifier = (isHandToHand && attackerDef.special?.includes('ranged')) ? -1 : 0;
   const defenderMeleeModifier = (isHandToHand && defenderDef.special?.includes('ranged')) ? -1 : 0;
 
-  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + getAttackerTerrainBonus(context.attackerTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0));
-  const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier);
+  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + getAttackerTerrainBonus(context.attackerTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0) + (context.ditchAttackModifier ?? 0));
+  const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier + (context.ditchDefenseModifier ?? 0));
 
   return { attackDice, defenseDice };
 }

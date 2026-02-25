@@ -1,4 +1,4 @@
-import { HexCoord, BoardState, coordToKey } from './types.js';
+import { HexCoord, BoardState, coordToKey, HexTile } from './types.js';
 
 // ─── Hex Constants ─────────────────────────────────────────────
 
@@ -94,6 +94,63 @@ export function getNeighbors(coord: HexCoord): HexCoord[] {
   }));
 }
 
+// ─── Direction Helpers ─────────────────────────────────────────
+
+/**
+ * Get the direction index (0-5) of neighbor `to` relative to `from`.
+ * Returns -1 if `to` is not adjacent to `from`.
+ * Direction indices (pointy-top even-r): 0=E, 1=NE, 2=NW, 3=W, 4=SW, 5=SE
+ */
+export function getNeighborDirection(from: HexCoord, to: HexCoord): number {
+  const offsets = (from.row & 1) === 0 ? NEIGHBOR_OFFSETS_SHIFTED : NEIGHBOR_OFFSETS_UNSHIFTED;
+  const dc = to.col - from.col;
+  const dr = to.row - from.row;
+  for (let i = 0; i < 6; i++) {
+    if (offsets[i][0] === dc && offsets[i][1] === dr) return i;
+  }
+  return -1;
+}
+
+/**
+ * Get the open direction pair for a ditch tile based on its orientation.
+ * orientation 0: E/W open (dirs 0, 3)
+ * orientation 1: NE/SW open (dirs 1, 4)
+ * orientation 2: NW/SE open (dirs 2, 5)
+ */
+function getDitchOpenDirs(orientation: number): [number, number] {
+  switch (orientation) {
+    case 1: return [1, 4];
+    case 2: return [2, 5];
+    default: return [0, 3]; // orientation 0
+  }
+}
+
+/**
+ * Check if the edge between two adjacent hexes crosses a fortified ditch side.
+ * Checks both hexes — if either is a ditch tile and the edge is fortified from
+ * that tile's perspective, returns true.
+ */
+export function isFortifiedEdge(board: BoardState, from: HexCoord, to: HexCoord): boolean {
+  const dir = getNeighborDirection(from, to);
+  if (dir === -1) return false;
+  const oppositeDir = (dir + 3) % 6;
+
+  const fromTile = board.tiles.get(coordToKey(from));
+  const toTile = board.tiles.get(coordToKey(to));
+
+  if (fromTile && fromTile.terrain === 'ditch') {
+    const [open1, open2] = getDitchOpenDirs(fromTile.orientation ?? 0);
+    if (dir !== open1 && dir !== open2) return true;
+  }
+
+  if (toTile && toTile.terrain === 'ditch') {
+    const [open1, open2] = getDitchOpenDirs(toTile.orientation ?? 0);
+    if (oppositeDir !== open1 && oppositeDir !== open2) return true;
+  }
+
+  return false;
+}
+
 // ─── Distance ──────────────────────────────────────────────────
 
 /** Manhattan distance between two hexes in cube coordinates */
@@ -145,6 +202,9 @@ export function getReachableHexes(
 
       // Impassable terrain
       if (tile.terrain === 'river' || tile.terrain === 'marsh') continue;
+
+      // Can't cross fortified ditch edges
+      if (isFortifiedEdge(board, coord, neighbor)) continue;
 
       // Can't move through occupied hexes (but can stop on them if they're empty)
       if (occupiedHexes.has(key)) continue;

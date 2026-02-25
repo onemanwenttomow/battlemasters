@@ -216,9 +216,13 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
     phase === 'defender_rolling' || phase === 'defender_settled' ? 'Defense!' :
     'Result';
 
-  // Show attacker results as 2D icons during defender phase and result
+  // Show attacker results as 2D icons once settled
   const showAttackerSummary = attackerResults.length > 0 &&
-    (phase === 'defender_rolling' || phase === 'defender_settled' || phase === 'result');
+    (phase === 'attacker_settled' || phase === 'pause' || phase === 'defender_rolling' || phase === 'defender_settled' || phase === 'result');
+
+  // Show defender results as 2D icons once settled
+  const showDefenderSummary = defenderResults.length > 0 &&
+    (phase === 'defender_settled' || phase === 'result');
 
   // Animation: entry plays once, shake plays on damage, then nothing
   const panelAnimation = !entryDone
@@ -273,9 +277,9 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
           {phaseLabel}
         </div>
 
-        {/* Attacker results summary — shown during defender roll */}
+        {/* Attacker results summary — shown once attack dice settle */}
         {showAttackerSummary && (
-          <DiceSummary label="Attack" dice={attackerResults} labelColor="#ff8844" />
+          <DiceSummary label="Attack" dice={attackerResults} labelColor="#ff8844" highlight="skull" />
         )}
 
         {/* 3D Dice Canvas */}
@@ -289,6 +293,11 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
             overflow: 'hidden',
           }}
         />
+
+        {/* Defender results summary — shown once defense dice settle */}
+        {showDefenderSummary && (
+          <DiceSummary label="Defense" dice={defenderResults} labelColor="#4488ff" highlight="shield" />
+        )}
 
         {/* Result */}
         <div style={{
@@ -344,11 +353,12 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   );
 }
 
-/** Compact 2D summary of dice results shown above the 3D canvas */
-function DiceSummary({ label, dice, labelColor }: {
+/** Compact 2D summary of dice results shown above/below the 3D canvas */
+function DiceSummary({ label, dice, labelColor, highlight }: {
   label: string;
   dice: DieResult[];
   labelColor: string;
+  highlight?: DieResult;
 }) {
   return (
     <div style={{
@@ -369,22 +379,27 @@ function DiceSummary({ label, dice, labelColor }: {
         {label}
       </span>
       <div style={{ display: 'flex', gap: 4 }}>
-        {dice.map((result, i) => (
-          <span key={i} style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            borderRadius: 4,
-            border: `1px solid ${DIE_COLORS[result]}55`,
-            background: 'rgba(255,255,255,0.04)',
-            fontSize: '0.85rem',
-            color: DIE_COLORS[result],
-          }}>
-            {DIE_SYMBOLS[result]}
-          </span>
-        ))}
+        {dice.map((result, i) => {
+          const isHighlighted = highlight && result === highlight;
+          return (
+            <span key={i} style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 24,
+              height: 24,
+              borderRadius: 4,
+              border: `1px solid ${isHighlighted ? DIE_COLORS[result] : DIE_COLORS[result] + '33'}`,
+              background: isHighlighted ? DIE_COLORS[result] + '25' : 'rgba(255,255,255,0.02)',
+              fontSize: '0.85rem',
+              color: isHighlighted ? DIE_COLORS[result] : '#555',
+              boxShadow: isHighlighted ? `0 0 8px ${DIE_COLORS[result]}44` : 'none',
+              opacity: isHighlighted ? 1 : 0.5,
+            }}>
+              {DIE_SYMBOLS[result]}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

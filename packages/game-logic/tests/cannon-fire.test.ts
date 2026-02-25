@@ -129,8 +129,8 @@ describe('cannon fire phase', () => {
       const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
 
       // Cannon is at col:5, row:4 (even row, shifted neighbors)
-      // Neighbor (6,5) is plain terrain and should be empty
-      const targetPos = { col: 6, row: 5 };
+      // Neighbor (6,4) is plain terrain
+      const targetPos = { col: 6, row: 4 };
       // Remove any unit at targetPos just in case
       for (const [id, unit] of s.units) {
         if (coordToKey(unit.position) === coordToKey(targetPos)) {
