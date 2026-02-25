@@ -201,7 +201,7 @@ export type GameAction =
   | { type: 'DRAW_CARD' }
   | { type: 'SELECT_UNIT'; unitId: string }
   | { type: 'MOVE_UNIT'; unitId: string; to: HexCoord }
-  | { type: 'ATTACK'; attackerId: string; defenderId: string }
+  | { type: 'ATTACK'; attackerId: string; defenderId: string; attackerRolls?: DieResult[]; defenderRolls?: DieResult[] }
   | { type: 'END_ACTIVATION' }
   | { type: 'DRAW_OGRE_CARD' }
   | { type: 'END_OGRE_ACTIVATION' }

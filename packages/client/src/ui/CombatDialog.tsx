@@ -1,6 +1,12 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
-import { getUnitDefinition, coordToKey } from '@battle-masters/game-logic';
+import {
+  getUnitDefinition,
+  coordToKey,
+  hexDistance,
+  getCombatDiceCounts,
+} from '@battle-masters/game-logic';
+import type { TerrainType } from '@battle-masters/game-logic';
 
 const FACTION_COLORS = {
   imperial: '#4488cc',
@@ -9,10 +15,9 @@ const FACTION_COLORS = {
 
 export function CombatDialog() {
   const state = useGameStore((s) => s.state);
-  const dispatch = useGameStore((s) => s.dispatch);
   const pendingAttack = useUIStore((s) => s.pendingAttack);
   const clearPendingAttack = useUIStore((s) => s.clearPendingAttack);
-  const showDice = useUIStore((s) => s.showDice);
+  const startDiceRoll = useUIStore((s) => s.startDiceRoll);
 
   if (!pendingAttack || !state) return null;
 
@@ -23,33 +28,28 @@ export function CombatDialog() {
   const attackerDef = getUnitDefinition(attacker.definitionType);
   const defenderDef = getUnitDefinition(defender.definitionType);
 
-  const attackerTerrain = state.board.tiles.get(coordToKey(attacker.position))?.terrain ?? 'plain';
-  const defenderTerrain = state.board.tiles.get(coordToKey(defender.position))?.terrain ?? 'plain';
+  const attackerTerrain: TerrainType = state.board.tiles.get(coordToKey(attacker.position))?.terrain ?? 'plain';
+  const defenderTerrain: TerrainType = state.board.tiles.get(coordToKey(defender.position))?.terrain ?? 'plain';
+
+  const distance = hexDistance(attacker.position, defender.position);
+  const chargeBonus = state.currentCard?.special === 'CHARGE' ? 1 : 0;
+
+  const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender, {
+    attackerTerrain,
+    defenderTerrain,
+    distance,
+    chargeBonus,
+  });
 
   const handleRollDice = () => {
-    const defenderPos = { ...defender.position };
-
-    dispatch({
-      type: 'ATTACK',
+    startDiceRoll({
       attackerId: pendingAttack.attackerId,
       defenderId: pendingAttack.defenderId,
+      attackDice,
+      defenseDice,
+      isCharge: chargeBonus > 0,
+      defenderPosition: { ...defender.position },
     });
-
-    const nextState = useGameStore.getState().state;
-    if (nextState) {
-      const lastEvent = nextState.combatLog[nextState.combatLog.length - 1];
-      const unitDestroyed = !nextState.units.has(pendingAttack.defenderId);
-      const isCharge = state.currentCard?.special === 'CHARGE';
-      showDice(nextState.combatLog.length - 1, {
-        defenderPosition: defenderPos,
-        damage: (lastEvent?.type === 'melee' ? lastEvent.result.damage : 0),
-        unitDestroyed,
-        destroyedUnitId: unitDestroyed ? pendingAttack.defenderId : null,
-        damagedUnitId: pendingAttack.defenderId,
-        isCharge,
-      });
-    }
-
     clearPendingAttack();
   };
 
@@ -90,7 +90,7 @@ export function CombatDialog() {
         borderRadius: 12,
         padding: '20px 28px',
         border: '2px solid #555',
-        minWidth: 340,
+        minWidth: 380,
         animation: 'fadeIn 0.15s ease-out',
       }}>
         <div style={{ fontSize: '0.85rem', color: '#aaa', textAlign: 'center', marginBottom: 16 }}>
@@ -107,6 +107,8 @@ export function CombatDialog() {
             maxHp={attacker.maxHp}
             terrain={attackerTerrain}
             label="Attacker"
+            diceCount={attackDice}
+            diceColor="#ff8844"
           />
           <div style={{
             display: 'flex',
@@ -125,6 +127,8 @@ export function CombatDialog() {
             maxHp={defender.maxHp}
             terrain={defenderTerrain}
             label="Defender"
+            diceCount={defenseDice}
+            diceColor="#4488ff"
           />
         </div>
 
@@ -165,7 +169,7 @@ export function CombatDialog() {
   );
 }
 
-function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label }: {
+function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, diceColor }: {
   name: string;
   faction: 'imperial' | 'chaos';
   cv: number;
@@ -173,11 +177,13 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label }: {
   maxHp: number;
   terrain: string;
   label: string;
+  diceCount: number;
+  diceColor: string;
 }) {
   const color = FACTION_COLORS[faction];
 
   return (
-    <div style={{ textAlign: 'center', minWidth: 100 }}>
+    <div style={{ textAlign: 'center', minWidth: 120 }}>
       <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color, marginBottom: 6 }}>{name}</div>
       <div style={{ fontSize: '0.75rem', color: '#ccc', marginBottom: 2 }}>
@@ -188,8 +194,40 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label }: {
         <span style={{ color: '#888' }}>HP: </span>
         <span style={{ color: hp < maxHp ? '#ff6666' : '#88cc88', fontWeight: 'bold' }}>{hp}/{maxHp}</span>
       </div>
-      <div style={{ fontSize: '0.7rem', color: '#888' }}>
+      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 8 }}>
         {terrain}
+      </div>
+      {/* Dice count */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 3,
+        }}>
+          {Array.from({ length: diceCount }, (_, i) => (
+            <div key={i} style={{
+              width: 20,
+              height: 20,
+              borderRadius: 4,
+              border: `1.5px solid ${diceColor}`,
+              background: 'rgba(255,255,255,0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.6rem',
+              color: diceColor,
+            }}>
+              ?
+            </div>
+          ))}
+        </div>
+        <span style={{ fontSize: '0.7rem', color: diceColor, fontWeight: 'bold' }}>
+          {diceCount}d
+        </span>
       </div>
     </div>
   );

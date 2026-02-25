@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rollDie, rollDice, countHits, countBlocks, resolveCombat } from '../src/combat';
+import { rollDie, rollDice, countHits, countBlocks, resolveCombat, getCombatDiceCounts, resolveCombatWithRolls } from '../src/combat';
 import { createUnit, resetUnitIdCounter } from '../src/units';
 import { createRNG } from '../src/cards';
 
@@ -117,5 +117,80 @@ describe('resolveCombat', () => {
 
     // men_at_arms combatValue=3 + 1 tower bonus = 4 attack dice
     expect(result.attackerRolls.length).toBe(4);
+  });
+});
+
+describe('getCombatDiceCounts', () => {
+  it('returns correct dice counts for melee combat', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('chaos_warrior', { col: 5, row: 5 });
+    const defender = createUnit('men_at_arms', { col: 5, row: 4 });
+
+    const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender);
+    expect(attackDice).toBe(4); // chaos_warrior combatValue = 4
+    expect(defenseDice).toBe(3); // men_at_arms combatValue = 3
+  });
+
+  it('applies tower defense bonus', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('chaos_warrior', { col: 6, row: 4 });
+    const defender = createUnit('men_at_arms', { col: 7, row: 4 });
+
+    const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender, {
+      attackerTerrain: 'plain',
+      defenderTerrain: 'tower',
+      distance: 1,
+    });
+    expect(attackDice).toBe(3); // 4 - 1 tower penalty
+    expect(defenseDice).toBe(4); // 3 + 1 tower bonus
+  });
+
+  it('applies charge bonus', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('men_at_arms', { col: 5, row: 5 });
+    const defender = createUnit('goblin', { col: 5, row: 4 });
+
+    const { attackDice } = getCombatDiceCounts(attacker, defender, {
+      attackerTerrain: 'plain',
+      defenderTerrain: 'plain',
+      distance: 1,
+      chargeBonus: 1,
+    });
+    expect(attackDice).toBe(4); // 3 + 1 charge
+  });
+});
+
+describe('resolveCombatWithRolls', () => {
+  it('uses provided rolls instead of RNG', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('chaos_warrior', { col: 5, row: 5 });
+    const defender = createUnit('men_at_arms', { col: 5, row: 4 });
+
+    const result = resolveCombatWithRolls(
+      attacker, defender,
+      ['skull', 'skull', 'blank', 'skull'],
+      ['shield', 'blank', 'blank'],
+    );
+
+    expect(result.attackerRolls).toEqual(['skull', 'skull', 'blank', 'skull']);
+    expect(result.defenderRolls).toEqual(['shield', 'blank', 'blank']);
+    expect(result.hits).toBe(3);
+    expect(result.blocks).toBe(1);
+    expect(result.damage).toBe(2);
+  });
+
+  it('correctly reports unit destroyed', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('chaos_warrior', { col: 5, row: 5 });
+    const defender = createUnit('goblin', { col: 5, row: 4 }); // goblin has 1 hp
+
+    const result = resolveCombatWithRolls(
+      attacker, defender,
+      ['skull', 'skull', 'skull', 'skull'],
+      ['blank'],
+    );
+
+    expect(result.damage).toBe(4);
+    expect(result.unitDestroyed).toBe(true);
   });
 });

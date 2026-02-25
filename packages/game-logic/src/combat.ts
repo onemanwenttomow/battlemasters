@@ -42,29 +42,33 @@ export interface CombatContext {
   chargeBonus?: number;
 }
 
-/** Resolve combat between two units */
-export function resolveCombat(
+/** Calculate the number of attack/defense dice for a combat */
+export function getCombatDiceCounts(
   attacker: Unit,
   defender: Unit,
-  rng: () => number,
   context: CombatContext = { attackerTerrain: 'plain', defenderTerrain: 'plain', distance: 1 }
-): CombatResult {
+): { attackDice: number; defenseDice: number } {
   const attackerDef = getUnitDefinition(attacker.definitionType);
   const defenderDef = getUnitDefinition(defender.definitionType);
 
   const isHandToHand = context.distance === 1;
 
-  // Hand-to-hand penalty: ranged units roll 1 fewer die when fighting adjacent
   const attackerMeleeModifier = (isHandToHand && attackerDef.special?.includes('ranged')) ? -1 : 0;
   const defenderMeleeModifier = (isHandToHand && defenderDef.special?.includes('ranged')) ? -1 : 0;
 
-  // combatValue is used for both attack and defense dice
   const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + getAttackerTerrainBonus(context.attackerTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0));
   const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier);
 
-  const attackerRolls = rollDice(attackDice, rng);
-  const defenderRolls = rollDice(defenseDice, rng);
+  return { attackDice, defenseDice };
+}
 
+/** Resolve combat using explicit roll arrays (from physics dice) */
+export function resolveCombatWithRolls(
+  attacker: Unit,
+  defender: Unit,
+  attackerRolls: DieResult[],
+  defenderRolls: DieResult[],
+): CombatResult {
   const hits = countHits(attackerRolls);
   const blocks = countBlocks(defenderRolls);
   const damage = Math.max(0, hits - blocks);
@@ -82,4 +86,19 @@ export function resolveCombat(
     damage,
     unitDestroyed,
   };
+}
+
+/** Resolve combat between two units */
+export function resolveCombat(
+  attacker: Unit,
+  defender: Unit,
+  rng: () => number,
+  context: CombatContext = { attackerTerrain: 'plain', defenderTerrain: 'plain', distance: 1 }
+): CombatResult {
+  const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender, context);
+
+  const attackerRolls = rollDice(attackDice, rng);
+  const defenderRolls = rollDice(defenseDice, rng);
+
+  return resolveCombatWithRolls(attacker, defender, attackerRolls, defenderRolls);
 }

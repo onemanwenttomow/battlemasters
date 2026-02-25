@@ -2,7 +2,7 @@ import { GameState, GameAction, Faction, coordToKey, HexCoord, CannonFireState, 
 import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter, getUnitDefinition } from './units.js';
 import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
-import { resolveCombat } from './combat.js';
+import { resolveCombat, resolveCombatWithRolls } from './combat.js';
 import { getTile } from './board.js';
 import { validateAction } from './validation.js';
 import { hexDistance, getShortestPaths } from './hex.js';
@@ -87,7 +87,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     case 'MOVE_UNIT':
       return handleMoveUnit(state, action.unitId, action.to);
     case 'ATTACK':
-      return handleAttack(state, action.attackerId, action.defenderId);
+      return handleAttack(state, action.attackerId, action.defenderId, action.attackerRolls, action.defenderRolls);
     case 'END_ACTIVATION':
       return handleEndActivation(state);
     case 'DRAW_OGRE_CARD':
@@ -243,7 +243,13 @@ function handleMoveUnit(state: GameState, unitId: string, to: HexCoord): GameSta
   return newState;
 }
 
-function handleAttack(state: GameState, attackerId: string, defenderId: string): GameState {
+function handleAttack(
+  state: GameState,
+  attackerId: string,
+  defenderId: string,
+  providedAttackerRolls?: import('./types.js').DieResult[],
+  providedDefenderRolls?: import('./types.js').DieResult[],
+): GameState {
   const newState = cloneState(state);
   const rng = createRNG(state.seed + state.turnNumber + state.combatLog.length);
 
@@ -256,12 +262,11 @@ function handleAttack(state: GameState, attackerId: string, defenderId: string):
 
   const chargeBonus = state.currentCard?.special === 'CHARGE' ? 1 : 0;
 
-  const result = resolveCombat(attacker, defender, rng, {
-    attackerTerrain,
-    defenderTerrain,
-    distance,
-    chargeBonus,
-  });
+  const context = { attackerTerrain, defenderTerrain, distance, chargeBonus };
+
+  const result = (providedAttackerRolls && providedDefenderRolls)
+    ? resolveCombatWithRolls(attacker, defender, providedAttackerRolls, providedDefenderRolls)
+    : resolveCombat(attacker, defender, rng, context);
 
   // Apply damage
   defender.hp -= result.damage;
