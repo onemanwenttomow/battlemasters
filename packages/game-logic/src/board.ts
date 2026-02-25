@@ -108,3 +108,13 @@ export function getAttackModifier(terrain: TerrainType): number {
       return 0;
   }
 }
+
+/** Bonus attack dice for attacker's own terrain */
+export function getAttackerTerrainBonus(terrain: TerrainType): number {
+  switch (terrain) {
+    case "tower":
+      return 1;
+    default:
+      return 0;
+  }
+}

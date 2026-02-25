@@ -1,6 +1,6 @@
 import { DieResult, CombatResult, Unit } from './types.js';
 import { getUnitDefinition } from './units.js';
-import { getDefenseModifier, getAttackModifier } from './board.js';
+import { getDefenseModifier, getAttackModifier, getAttackerTerrainBonus } from './board.js';
 import type { TerrainType } from './types.js';
 
 // ─── Dice ──────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ export function resolveCombat(
   const defenderMeleeModifier = (isHandToHand && defenderDef.special?.includes('ranged')) ? -1 : 0;
 
   // combatValue is used for both attack and defense dice
-  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0));
+  const attackDice = Math.max(1, attackerDef.combatValue + getAttackModifier(context.defenderTerrain) + getAttackerTerrainBonus(context.attackerTerrain) + attackerMeleeModifier + (context.chargeBonus ?? 0));
   const defenseDice = Math.max(0, defenderDef.combatValue + getDefenseModifier(context.defenderTerrain) + defenderMeleeModifier);
 
   const attackerRolls = rollDice(attackDice, rng);

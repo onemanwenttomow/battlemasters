@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createDefaultBoard, getTile, isImpassable, getDefenseModifier, getAttackModifier, BOARD_WIDTH, BOARD_HEIGHT } from '../src/board';
+import { createDefaultBoard, getTile, isImpassable, getDefenseModifier, getAttackModifier, getAttackerTerrainBonus, BOARD_WIDTH, BOARD_HEIGHT } from '../src/board';
 import { coordToKey } from '../src/types';
+import { UNIT_DEFINITIONS } from '../src/units';
 
 describe('createDefaultBoard', () => {
   const board = createDefaultBoard();
@@ -73,5 +74,19 @@ describe('terrain helpers', () => {
   it('plain has no modifiers', () => {
     expect(getDefenseModifier('plain')).toBe(0);
     expect(getAttackModifier('plain')).toBe(0);
+  });
+
+  it('tower gives +1 attacker terrain bonus', () => {
+    expect(getAttackerTerrainBonus('tower')).toBe(1);
+  });
+
+  it('plain gives no attacker terrain bonus', () => {
+    expect(getAttackerTerrainBonus('plain')).toBe(0);
+  });
+});
+
+describe('unit restrictions', () => {
+  it('ogre_champion has no_tower special', () => {
+    expect(UNIT_DEFINITIONS.ogre_champion.special).toContain('no_tower');
   });
 });

@@ -157,6 +157,13 @@ export interface CannonTileResult {
   unitHit: string | null;   // unit name if hit
   damage: number;
   destroyed: boolean;
+  towerRubbleAdded?: boolean;
+  towerDestroyed?: boolean;
+}
+
+export interface TowerState {
+  rubbleCount: number;
+  destroyed: boolean;
 }
 
 export interface CannonFireState {
@@ -227,6 +234,8 @@ export interface GameState {
   currentOgreSubCard: OgreSubCard | null;
   // Cannon Fire state
   cannonFireState: CannonFireState | null;
+  // Tower state
+  towerState: TowerState;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

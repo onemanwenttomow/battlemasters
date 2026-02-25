@@ -1,4 +1,4 @@
-import { GameState, GameAction, Faction, coordToKey, HexCoord, CannonFireState, CannonTileResult } from './types.js';
+import { GameState, GameAction, Faction, coordToKey, HexCoord, CannonFireState, CannonTileResult, TowerState } from './types.js';
 import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter, getUnitDefinition } from './units.js';
 import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
@@ -33,7 +33,39 @@ export function createInitialState(seed?: number): GameState {
     ogreSubCardsTotal: 0,
     currentOgreSubCard: null,
     cannonFireState: null,
+    towerState: { rubbleCount: 0, destroyed: false },
   };
+}
+
+// ─── Tower Helpers ──────────────────────────────────────────────
+
+/** The tower hex coordinate */
+const TOWER_COORD: HexCoord = { col: 5, row: 2 };
+
+/** Destroy the tower: set destroyed flag and change terrain to plain */
+function destroyTower(state: GameState): void {
+  state.towerState.destroyed = true;
+  // Clone tiles map and change tower terrain to plain
+  const newTiles = new Map(state.board.tiles);
+  const towerKey = coordToKey(TOWER_COORD);
+  const towerTile = newTiles.get(towerKey);
+  if (towerTile) {
+    newTiles.set(towerKey, { ...towerTile, terrain: 'plain' });
+  }
+  state.board = { ...state.board, tiles: newTiles };
+}
+
+/** Add rubble to the tower if the coord is the tower hex. Returns { rubbleAdded, towerDestroyed } */
+function addTowerRubble(state: GameState, coord: HexCoord): { rubbleAdded: boolean; towerDestroyed: boolean } {
+  if (state.towerState.destroyed) return { rubbleAdded: false, towerDestroyed: false };
+  if (coordToKey(coord) !== coordToKey(TOWER_COORD)) return { rubbleAdded: false, towerDestroyed: false };
+
+  state.towerState = { ...state.towerState, rubbleCount: state.towerState.rubbleCount + 1 };
+  if (state.towerState.rubbleCount >= 3) {
+    destroyTower(state);
+    return { rubbleAdded: true, towerDestroyed: true };
+  }
+  return { rubbleAdded: true, towerDestroyed: false };
 }
 
 // ─── State Machine ─────────────────────────────────────────────
@@ -423,15 +455,18 @@ function handleFireCannon(state: GameState, targetCoord: HexCoord): GameState {
     if (firstTile.type === 'explosion') {
       // Misfire! Destroy the unit in target hex, then draw one more onto cannon's space
       cannonFireState.misfire = true;
+      if (targetUnitId) {
+        newState.units.delete(targetUnitId);
+      }
+      const rubble = addTowerRubble(newState, targetCoord);
       cannonFireState.tileResults.push({
         tileType: 'explosion',
         unitHit: targetName,
         damage: 0,
         destroyed: !!targetUnitId,
+        towerRubbleAdded: rubble.rubbleAdded,
+        towerDestroyed: rubble.towerDestroyed,
       });
-      if (targetUnitId) {
-        newState.units.delete(targetUnitId);
-      }
 
       const misfireTile = tileDeck[1];
       cannonFireState.tileIndex = 2;
@@ -557,6 +592,10 @@ function handleDrawCannonTile(state: GameState): GameState {
     return null;
   };
 
+  // Check if target is in the tower
+  const targetTerrain = getTile(newState.board, cfs.targetCoord)?.terrain ?? 'plain';
+  const targetInTower = targetTerrain === 'tower';
+
   if (isFirstTile && tile.type === 'explosion') {
     // MISFIRE: explosion on first tile
     cfs.misfire = true;
@@ -566,11 +605,14 @@ function handleDrawCannonTile(state: GameState): GameState {
     if (hitUnit) {
       newState.units.delete(hitUnit.id);
     }
+    const rubble = addTowerRubble(newState, tileCoord);
     cfs.tileResults.push({
       tileType: 'explosion',
       unitHit: hitUnit?.name ?? null,
       damage: 0,
       destroyed: !!hitUnit,
+      towerRubbleAdded: rubble.rubbleAdded,
+      towerDestroyed: rubble.towerDestroyed,
     });
 
     // Draw one more tile onto cannon's space
@@ -597,11 +639,14 @@ function handleDrawCannonTile(state: GameState): GameState {
         cannonDestroyed = true;
       }
     }
+    const misfireRubble = addTowerRubble(newState, cannonCoord);
     cfs.tileResults.push({
       tileType: misfireTile.type,
       unitHit: (cannonDamage > 0 || cannonDestroyed) ? cannonName : null,
       damage: cannonDamage,
       destroyed: cannonDestroyed,
+      towerRubbleAdded: misfireRubble.rubbleAdded,
+      towerDestroyed: misfireRubble.towerDestroyed,
     });
 
     cfs.resolved = true;
@@ -611,11 +656,14 @@ function handleDrawCannonTile(state: GameState): GameState {
     if (hitUnit) {
       newState.units.delete(hitUnit.id);
     }
+    const rubble = addTowerRubble(newState, tileCoord);
     cfs.tileResults.push({
       tileType: 'explosion',
       unitHit: hitUnit?.name ?? null,
       damage: 0,
       destroyed: !!hitUnit,
+      towerRubbleAdded: rubble.rubbleAdded,
+      towerDestroyed: rubble.towerDestroyed,
     });
     cfs.resolved = true;
   } else if (tile.type === 'bouncing') {
@@ -638,14 +686,77 @@ function handleDrawCannonTile(state: GameState): GameState {
     });
     cfs.pathStepIndex++;
 
-    // Check if we've reached the end of the path — target destroyed
+    // Check if we've reached the end of the path
     if (cfs.pathStepIndex >= cfs.path.length) {
-      cfs.targetDestroyed = true;
-      cfs.resolved = true;
-      // Destroy the target
-      if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
-        newState.units.delete(cfs.targetUnitId);
+      if (targetInTower && cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+        // Tower target: bouncing = 1 damage (not auto-destroy)
+        const target = newState.units.get(cfs.targetUnitId)!;
+        const targetName = getUnitDefinition(target.definitionType).name;
+        target.hp -= 1;
+        if (target.hp <= 0) {
+          newState.units.delete(cfs.targetUnitId);
+          cfs.targetDestroyed = true;
+        }
+        // Draw one more tile for the target hex to resolve against tower
+        const extraTile = cfs.tileDeck[cfs.tileIndex];
+        cfs.tileIndex++;
+        cfs.placedTiles.push({ coord: { ...cfs.targetCoord }, tile: { ...extraTile } });
+        if (extraTile.type === 'flying') {
+          // Ball passes over tower — target survives (already took bouncing damage above)
+          cfs.tileResults.push({
+            tileType: 'flying',
+            unitHit: null,
+            damage: 0,
+            destroyed: false,
+          });
+        } else if (extraTile.type === 'bouncing') {
+          // 1 more damage to target
+          const targetStill = newState.units.get(cfs.targetUnitId!);
+          if (targetStill) {
+            targetStill.hp -= 1;
+            if (targetStill.hp <= 0) {
+              newState.units.delete(cfs.targetUnitId!);
+              cfs.targetDestroyed = true;
+            }
+            cfs.tileResults.push({
+              tileType: 'bouncing',
+              unitHit: targetName,
+              damage: 1,
+              destroyed: targetStill.hp <= 0,
+            });
+          } else {
+            cfs.tileResults.push({
+              tileType: 'bouncing',
+              unitHit: null,
+              damage: 0,
+              destroyed: false,
+            });
+          }
+        } else {
+          // Explosion: eliminate target + add rubble
+          const targetStill = newState.units.get(cfs.targetUnitId!);
+          if (targetStill) {
+            newState.units.delete(cfs.targetUnitId!);
+            cfs.targetDestroyed = true;
+          }
+          const rubble = addTowerRubble(newState, cfs.targetCoord);
+          cfs.tileResults.push({
+            tileType: 'explosion',
+            unitHit: targetStill ? targetName : null,
+            damage: 0,
+            destroyed: !!targetStill,
+            towerRubbleAdded: rubble.rubbleAdded,
+            towerDestroyed: rubble.towerDestroyed,
+          });
+        }
+      } else {
+        // Non-tower target: auto-destroy as before
+        cfs.targetDestroyed = true;
+        if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+          newState.units.delete(cfs.targetUnitId);
+        }
       }
+      cfs.resolved = true;
     }
   } else {
     // Flying — no effect, continue
@@ -658,11 +769,56 @@ function handleDrawCannonTile(state: GameState): GameState {
     cfs.pathStepIndex++;
 
     if (cfs.pathStepIndex >= cfs.path.length) {
-      cfs.targetDestroyed = true;
-      cfs.resolved = true;
-      if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
-        newState.units.delete(cfs.targetUnitId);
+      if (targetInTower && cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+        // Tower target: draw one more tile for the target hex
+        const target = newState.units.get(cfs.targetUnitId)!;
+        const targetName = getUnitDefinition(target.definitionType).name;
+        const extraTile = cfs.tileDeck[cfs.tileIndex];
+        cfs.tileIndex++;
+        cfs.placedTiles.push({ coord: { ...cfs.targetCoord }, tile: { ...extraTile } });
+        if (extraTile.type === 'flying') {
+          // Ball passes over tower — target survives
+          cfs.tileResults.push({
+            tileType: 'flying',
+            unitHit: null,
+            damage: 0,
+            destroyed: false,
+          });
+        } else if (extraTile.type === 'bouncing') {
+          // 1 damage to target
+          target.hp -= 1;
+          if (target.hp <= 0) {
+            newState.units.delete(cfs.targetUnitId!);
+            cfs.targetDestroyed = true;
+          }
+          cfs.tileResults.push({
+            tileType: 'bouncing',
+            unitHit: targetName,
+            damage: 1,
+            destroyed: target.hp <= 0,
+          });
+        } else {
+          // Explosion: eliminate target + add rubble
+          newState.units.delete(cfs.targetUnitId!);
+          cfs.targetDestroyed = true;
+          const rubble = addTowerRubble(newState, cfs.targetCoord);
+          cfs.tileResults.push({
+            tileType: 'explosion',
+            unitHit: targetName,
+            damage: 0,
+            destroyed: true,
+            towerRubbleAdded: rubble.rubbleAdded,
+            towerDestroyed: rubble.towerDestroyed,
+          });
+        }
+      } else {
+        // Non-tower target: auto-destroy as before
+        cfs.targetDestroyed = true;
+        if (cfs.targetUnitId && newState.units.has(cfs.targetUnitId)) {
+          newState.units.delete(cfs.targetUnitId);
+        }
       }
+      cfs.resolved = true;
     }
   }
 
@@ -761,6 +917,7 @@ function cloneState(state: GameState): GameState {
     currentCard: state.currentCard ? { ...state.currentCard } : null,
     ogreSubDeck: state.ogreSubDeck.map(c => ({ ...c })),
     currentOgreSubCard: state.currentOgreSubCard ? { ...state.currentOgreSubCard } : null,
+    towerState: { ...state.towerState },
     cannonFireState: state.cannonFireState ? {
       ...state.cannonFireState,
       tileDeck: state.cannonFireState.tileDeck.map(t => ({ ...t })),

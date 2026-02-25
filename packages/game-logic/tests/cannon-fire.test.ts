@@ -3,6 +3,7 @@ import { createInitialState, applyAction } from '../src/game-state';
 import { createCannonTileDeck, createRNG } from '../src/cards';
 import { getShortestPaths, hexDistance } from '../src/hex';
 import { GameState, coordToKey } from '../src/types';
+import { getTile, getDefenseModifier, getAttackModifier } from '../src/board';
 
 describe('createCannonTileDeck', () => {
   it('creates 9 tiles (4 flying, 3 bouncing, 2 explosion)', () => {
@@ -655,6 +656,200 @@ describe('cannon fire phase', () => {
           expect(s.currentPhase).toBe('game_over');
         }
       }
+    });
+  });
+
+  describe('tower interaction', () => {
+    // Tower is at col:5, row:2. Cannon starts at col:5, row:4.
+    // Distance from cannon to tower = 2, so path has 1 intermediate hex.
+
+    function setupTowerShot(): { state: GameState; cannonId: string; enemyId: string } {
+      let s = applyAction(state, { type: 'DRAW_CARD' });
+      const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+
+      // Place an enemy in the tower hex (col:5, row:2)
+      const enemy = [...s.units.values()].find(u => u.faction === 'chaos')!;
+      enemy.position = { col: 5, row: 2 };
+
+      // Clear any other units from the path to avoid interference
+      for (const [id, unit] of s.units) {
+        if (id !== cannon.id && id !== enemy.id) {
+          const key = coordToKey(unit.position);
+          // Remove units from intermediate hexes between cannon (5,4) and tower (5,2)
+          if (key === coordToKey({ col: 5, row: 3 }) || key === coordToKey({ col: 4, row: 3 })) {
+            unit.position = { col: 0, row: 0 }; // move out of the way
+          }
+        }
+      }
+
+      return { state: s, cannonId: cannon.id, enemyId: enemy.id };
+    }
+
+    it('explosion on tower hex adds rubble', () => {
+      const { state: s } = setupTowerShot();
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      // Select path if needed
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force path tile to flying (avoids misfire), extra tower tile to explosion
+      // The extra tower tile is drawn internally when path traversal completes
+      result.cannonFireState!.tileDeck[0] = { type: 'flying' };
+      result.cannonFireState!.tileDeck[1] = { type: 'explosion' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      // Fire should be resolved after one draw (path tile + internal extra tile)
+      expect(result.cannonFireState!.resolved).toBe(true);
+      const explosionResult = result.cannonFireState!.tileResults.find(r => r.tileType === 'explosion');
+      expect(explosionResult).toBeDefined();
+      expect(result.towerState.rubbleCount).toBe(1);
+      expect(result.towerState.destroyed).toBe(false);
+    });
+
+    it('bouncing on tower hex does NOT add rubble', () => {
+      const { state: s } = setupTowerShot();
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force bouncing on first tile (in path, not target)
+      result.cannonFireState!.tileDeck[0] = { type: 'bouncing' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      expect(result.towerState.rubbleCount).toBe(0);
+    });
+
+    it('tower destroyed at 3 rubble (terrain becomes plain)', () => {
+      const { state: s } = setupTowerShot();
+
+      // Pre-set rubble to 2
+      s.towerState = { rubbleCount: 2, destroyed: false };
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force path tile to flying, extra tower tile to explosion (drawn internally)
+      result.cannonFireState!.tileDeck[0] = { type: 'flying' };
+      result.cannonFireState!.tileDeck[1] = { type: 'explosion' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      expect(result.towerState.rubbleCount).toBe(3);
+      expect(result.towerState.destroyed).toBe(true);
+      // Tower terrain should now be plain
+      const towerTile = getTile(result.board, { col: 5, row: 2 });
+      expect(towerTile?.terrain).toBe('plain');
+    });
+
+    it('destroyed tower has no combat modifiers', () => {
+      const { state: s } = setupTowerShot();
+
+      // Destroy the tower
+      s.towerState = { rubbleCount: 3, destroyed: true };
+      const towerKey = coordToKey({ col: 5, row: 2 });
+      const towerTile = s.board.tiles.get(towerKey)!;
+      s.board.tiles.set(towerKey, { ...towerTile, terrain: 'plain' });
+
+      const tile = getTile(s.board, { col: 5, row: 2 });
+      expect(tile?.terrain).toBe('plain');
+      expect(getDefenseModifier(tile!.terrain)).toBe(0);
+      expect(getAttackModifier(tile!.terrain)).toBe(0);
+    });
+
+    it('mounted units can enter destroyed tower hex', () => {
+      const { state: s } = setupTowerShot();
+
+      // Destroy the tower
+      s.towerState = { rubbleCount: 3, destroyed: true };
+      const towerKey = coordToKey({ col: 5, row: 2 });
+      const towerTile = s.board.tiles.get(towerKey)!;
+      s.board.tiles.set(towerKey, { ...towerTile, terrain: 'plain' });
+
+      // The terrain is now plain, so no_tower restriction doesn't apply
+      const tile = getTile(s.board, { col: 5, row: 2 });
+      expect(tile?.terrain).toBe('plain');
+      // no_tower only checks for 'tower' terrain, plain is fine
+    });
+
+    it('distant shot on tower target: flying = target survives', () => {
+      const { state: s, enemyId } = setupTowerShot();
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force path tile to flying, extra tower tile to flying (drawn internally)
+      result.cannonFireState!.tileDeck[0] = { type: 'flying' };
+      result.cannonFireState!.tileDeck[1] = { type: 'flying' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      expect(result.cannonFireState!.resolved).toBe(true);
+      expect(result.units.has(enemyId)).toBe(true);
+      expect(result.cannonFireState!.targetDestroyed).toBe(false);
+    });
+
+    it('distant shot on tower target: bouncing = 1 damage (not auto-destroy)', () => {
+      const { state: s, enemyId } = setupTowerShot();
+      const enemyHpBefore = s.units.get(enemyId)!.hp;
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force path tile to flying, extra tower tile to bouncing (drawn internally)
+      result.cannonFireState!.tileDeck[0] = { type: 'flying' };
+      result.cannonFireState!.tileDeck[1] = { type: 'bouncing' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      expect(result.cannonFireState!.resolved).toBe(true);
+      // Target takes 1 damage but is not auto-destroyed (hp was 3, now 2)
+      const enemy = result.units.get(enemyId);
+      expect(enemy).toBeDefined();
+      expect(enemy!.hp).toBe(enemyHpBefore - 1);
+    });
+
+    it('distant shot on tower target: explosion = eliminate + rubble', () => {
+      const { state: s, enemyId } = setupTowerShot();
+
+      let result = applyAction(s, { type: 'FIRE_CANNON', targetCoord: { col: 5, row: 2 } });
+
+      if (result.cannonFireState!.path.length === 0) {
+        const cannon = [...s.units.values()].find(u => u.definitionType === 'mighty_cannon')!;
+        const allPaths = getShortestPaths(cannon.position, { col: 5, row: 2 });
+        result = applyAction(result, { type: 'SELECT_CANNON_PATH', path: allPaths[0] });
+      }
+
+      // Force path tile to flying, extra tower tile to explosion (drawn internally)
+      result.cannonFireState!.tileDeck[0] = { type: 'flying' };
+      result.cannonFireState!.tileDeck[1] = { type: 'explosion' };
+      result = applyAction(result, { type: 'DRAW_CANNON_TILE' });
+
+      expect(result.cannonFireState!.resolved).toBe(true);
+      expect(result.units.has(enemyId)).toBe(false);
+      expect(result.cannonFireState!.targetDestroyed).toBe(true);
+      expect(result.towerState.rubbleCount).toBe(1);
     });
   });
 });

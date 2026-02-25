@@ -152,7 +152,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     combatValue: 4,
     movement: 1,
     range: 1,
-    special: ['ogre_rampage'],
+    special: ['ogre_rampage', 'no_tower'],
     spriteKey: 'chaos_ogre_champion',
   },
 };

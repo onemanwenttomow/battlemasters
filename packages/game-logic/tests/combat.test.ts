@@ -102,4 +102,20 @@ describe('resolveCombat', () => {
     // Attacker should have 3 dice (4 combatValue - 1 tower penalty)
     expect(result.attackerRolls.length).toBe(3);
   });
+
+  it('tower attacker gets +1 attack die', () => {
+    resetUnitIdCounter();
+    const attacker = createUnit('men_at_arms', { col: 5, row: 2 });
+    const defender = createUnit('goblin', { col: 5, row: 3 });
+    const rng = createRNG(42);
+
+    const result = resolveCombat(attacker, defender, rng, {
+      attackerTerrain: 'tower',
+      defenderTerrain: 'plain',
+      distance: 1,
+    });
+
+    // men_at_arms combatValue=3 + 1 tower bonus = 4 attack dice
+    expect(result.attackerRolls.length).toBe(4);
+  });
 });
