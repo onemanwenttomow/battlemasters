@@ -21,7 +21,7 @@ const BOARD_LAYOUT: string[][] = [
   ["ro", "g", "ri", "ri", "ro", "to", "ri", "ri", "ro", "g", "ri", "ri"],
   ["ro", "ri", "ri", "g", "ro", "ri", "ri", "g", "ro", "ri", "ri", "g", "ro"],
   ["ro", "g", "g", "ro", "ro", "g", "g", "ro", "ro", "g", "g", "ro"],
-  ["g", "ro", "g", "ro", "g", "ro", "g", "ro", "g", "ro", "g", "ro", "g"],
+  ["g", "ro", "g", "ro", "g", "ro", "sw", "ro", "g", "ro", "g", "ro", "g"],
   ["g", "ro", "ro", "g", "g", "ro", "ro", "g", "g", "ro", "ro", "g"],
   ["g", "g", "ro", "g", "g", "g", "ro", "g", "g", "g", "ro", "g", "g"],
   ["g", "g", "ro", "g", "g", "g", "ro", "g", "g", "g", "ro", "g"],
