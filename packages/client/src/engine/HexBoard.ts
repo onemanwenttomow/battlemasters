@@ -416,16 +416,16 @@ export class HexBoard {
   }
 
   /**
-   * Create procedural sharpened stake fortifications on the 5 fortified edges of a ditch tile.
-   * Orientation determines which single side is open (no stakes).
+   * Create procedural sharpened stake fortifications on the 4 fortified edges of a ditch tile.
+   * Orientation determines which two adjacent sides are open (no stakes).
    * Stakes lean outward at 45° with sharpened cone tips, connected by two horizontal rails.
    */
   private createDitchFortifications(
     tile: HexTile,
     pos: { x: number; z: number },
   ): THREE.Group[] {
-    const orientation = tile.orientation ?? 0;
-    const openDir = orientation % 6;
+    const orientation = (tile.orientation ?? 0) % 6;
+    const openDirs = [orientation, (orientation + 1) % 6];
 
     const results: THREE.Group[] = [];
     const woodMat = new THREE.MeshStandardMaterial({
@@ -437,7 +437,7 @@ export class HexBoard {
     const tiltAngle = Math.PI / 4; // 45° outward lean
 
     for (let dir = 0; dir < 6; dir++) {
-      if (dir === openDir) continue;
+      if (openDirs.includes(dir)) continue;
 
       const group = new THREE.Group();
 

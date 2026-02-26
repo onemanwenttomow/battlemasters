@@ -32,9 +32,9 @@ describe('ditch on default board', () => {
     expect(tile?.terrain).toBe('ditch');
   });
 
-  it('ditch at (8,5) has orientation 0', () => {
+  it('ditch at (8,5) has orientation 1 (NE+NW open)', () => {
     const tile = getTile(board, { col: 8, row: 5 });
-    expect(tile?.orientation).toBe(0);
+    expect(tile?.orientation).toBe(1);
   });
 });
 
@@ -53,58 +53,56 @@ describe('getNeighborDirection', () => {
   });
 });
 
-describe('isFortifiedEdge', () => {
-  // Ditch at (5,4) with orientation 0 (only E open)
-  // Fortified edges: NE(1), NW(2), W(3), SW(4), SE(5)
+describe('isFortifiedEdge — orientation 0 (E+NE open)', () => {
+  // Ditch at (5,4) even row. Open dirs: E(0) and NE(1). Fortified: NW(2), W(3), SW(4), SE(5)
   const board = createBoardWithDitch({ col: 5, row: 4 }, 0);
 
-  it('E edge is open (orientation 0)', () => {
+  it('E edge is open', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 4 })).toBe(false);
   });
 
-  it('W edge is fortified (orientation 0, single open side)', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(true);
-  });
-
-  it('NE edge is fortified (orientation 0)', () => {
+  it('NE edge is open', () => {
     // Even row: NE neighbor is col+1, row-1
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(true);
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(false);
   });
 
-  it('NW edge is fortified (orientation 0)', () => {
+  it('NW edge is fortified', () => {
     // Even row: NW neighbor is col+0, row-1
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(true);
   });
 
-  it('SW edge is fortified (orientation 0)', () => {
+  it('W edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(true);
+  });
+
+  it('SW edge is fortified', () => {
     // Even row: SW neighbor is col+0, row+1
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
   });
 
-  it('SE edge is fortified (orientation 0)', () => {
+  it('SE edge is fortified', () => {
     // Even row: SE neighbor is col+1, row+1
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
   });
 
-  it('approaching ditch from fortified side (from outside) is also fortified', () => {
-    // From a plain tile to the ditch across a fortified edge
-    expect(isFortifiedEdge(board, { col: 6, row: 3 }, { col: 5, row: 4 })).toBe(true);
+  it('approaching ditch from fortified side is also fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 3 }, { col: 5, row: 4 })).toBe(true);
   });
 
-  it('approaching ditch from open side (from outside) is not fortified', () => {
+  it('approaching ditch from open side is not fortified', () => {
     expect(isFortifiedEdge(board, { col: 6, row: 4 }, { col: 5, row: 4 })).toBe(false);
   });
 });
 
-describe('isFortifiedEdge orientation 1 (only NE open)', () => {
+describe('isFortifiedEdge — orientation 1 (NE+NW open)', () => {
   const board = createBoardWithDitch({ col: 5, row: 4 }, 1);
 
   it('NE edge is open', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(false);
   });
 
-  it('SW edge is fortified (single open side)', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
+  it('NW edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(false);
   });
 
   it('E edge is fortified', () => {
@@ -114,30 +112,56 @@ describe('isFortifiedEdge orientation 1 (only NE open)', () => {
   it('W edge is fortified', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(true);
   });
-});
 
-describe('isFortifiedEdge orientation 2 (only NW open)', () => {
-  const board = createBoardWithDitch({ col: 5, row: 4 }, 2);
-
-  it('NW edge is open', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(false);
+  it('SW edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
   });
 
-  it('SE edge is fortified (single open side)', () => {
+  it('SE edge is fortified', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
+  });
+});
+
+describe('isFortifiedEdge — orientation 3 (W+SW open)', () => {
+  const board = createBoardWithDitch({ col: 5, row: 4 }, 3);
+
+  it('W edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(false);
+  });
+
+  it('SW edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(false);
   });
 
   it('E edge is fortified', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 4 })).toBe(true);
   });
+
+  it('NE edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(true);
+  });
+
+  it('NW edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(true);
+  });
+
+  it('SE edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
+  });
 });
 
 describe('ditch movement blocking', () => {
   const ditchCoord = { col: 5, row: 4 };
-  const board = createBoardWithDitch(ditchCoord, 0); // only E open
+  const board = createBoardWithDitch(ditchCoord, 0); // E+NE open
 
   it('can enter ditch from open side (E)', () => {
     const reachable = getReachableHexes({ col: 6, row: 4 }, 1, board);
+    const keys = reachable.map(c => coordToKey(c));
+    expect(keys).toContain(coordToKey(ditchCoord));
+  });
+
+  it('can enter ditch from open side (NE)', () => {
+    const reachable = getReachableHexes({ col: 6, row: 3 }, 1, board);
     const keys = reachable.map(c => coordToKey(c));
     expect(keys).toContain(coordToKey(ditchCoord));
   });
@@ -148,8 +172,8 @@ describe('ditch movement blocking', () => {
     expect(keys).not.toContain(coordToKey(ditchCoord));
   });
 
-  it('cannot enter ditch from fortified side (NE)', () => {
-    const reachable = getReachableHexes({ col: 6, row: 3 }, 1, board);
+  it('cannot enter ditch from fortified side (NW)', () => {
+    const reachable = getReachableHexes({ col: 5, row: 3 }, 1, board);
     const keys = reachable.map(c => coordToKey(c));
     expect(keys).not.toContain(coordToKey(ditchCoord));
   });
@@ -157,62 +181,65 @@ describe('ditch movement blocking', () => {
   it('cannot exit ditch through fortified side', () => {
     const reachable = getReachableHexes(ditchCoord, 1, board);
     const keys = reachable.map(c => coordToKey(c));
-    // Should be able to reach E (open), but not W/NE/NW/SW/SE (fortified)
+    // Should be able to reach E and NE (open), but not others (fortified)
     expect(keys).toContain(coordToKey({ col: 6, row: 4 })); // E - open
+    expect(keys).toContain(coordToKey({ col: 6, row: 3 })); // NE - open
     expect(keys).not.toContain(coordToKey({ col: 4, row: 4 })); // W - fortified
     expect(keys).not.toContain(coordToKey({ col: 5, row: 3 })); // NW - fortified
-    expect(keys).not.toContain(coordToKey({ col: 6, row: 3 })); // NE - fortified
   });
 });
 
 describe('ditch combat modifiers', () => {
   const ditchCoord = { col: 5, row: 4 };
-  const board = createBoardWithDitch(ditchCoord, 0); // E/W open
+  const board = createBoardWithDitch(ditchCoord, 0); // E+NE open
 
   it('attacker gets -1 die across fortified edge', () => {
-    // Attack from NE (fortified) into ditch
+    // Attack from NW (fortified) into ditch
     expect(getDitchAttackModifier(
-      board, { col: 6, row: 3 }, ditchCoord, 'chaos_warrior',
+      board, { col: 5, row: 3 }, ditchCoord, 'chaos_warrior',
     )).toBe(-1);
   });
 
-  it('defender gets +1 die across fortified edge', () => {
+  it('defender in ditch gets +1 die', () => {
     expect(getDitchDefenseModifier(
-      board, { col: 6, row: 3 }, ditchCoord,
+      board, { col: 5, row: 3 }, ditchCoord,
     )).toBe(1);
   });
 
-  it('no modifier across open edge', () => {
+  it('no attack modifier across open edge', () => {
     // Attack from E (open)
     expect(getDitchAttackModifier(
       board, { col: 6, row: 4 }, ditchCoord, 'chaos_warrior',
     )).toBe(0);
+  });
+
+  it('defender in ditch always gets +1 defense even from open edge', () => {
     expect(getDitchDefenseModifier(
       board, { col: 6, row: 4 }, ditchCoord,
-    )).toBe(0);
+    )).toBe(1);
   });
 
   it('ranged unit (archer) gets no attack penalty across fortified edge', () => {
     expect(getDitchAttackModifier(
-      board, { col: 6, row: 3 }, ditchCoord, 'archer',
+      board, { col: 5, row: 3 }, ditchCoord, 'archer',
     )).toBe(0);
   });
 
   it('ranged unit (crossbowman) gets no attack penalty across fortified edge', () => {
     expect(getDitchAttackModifier(
-      board, { col: 6, row: 3 }, ditchCoord, 'crossbowman',
+      board, { col: 5, row: 3 }, ditchCoord, 'crossbowman',
     )).toBe(0);
   });
 
   it('ranged unit (chaos_bowman) gets no attack penalty across fortified edge', () => {
     expect(getDitchAttackModifier(
-      board, { col: 6, row: 3 }, ditchCoord, 'chaos_bowman',
+      board, { col: 5, row: 3 }, ditchCoord, 'chaos_bowman',
     )).toBe(0);
   });
 
   it('getCombatDiceCounts applies ditch modifiers', () => {
     resetUnitIdCounter();
-    const attacker = createUnit('chaos_warrior', { col: 6, row: 3 }); // CV 4
+    const attacker = createUnit('chaos_warrior', { col: 5, row: 3 }); // CV 4
     const defender = createUnit('men_at_arms', ditchCoord); // CV 3
 
     const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender, {
@@ -229,7 +256,7 @@ describe('ditch combat modifiers', () => {
 
   it('getCombatDiceCounts no ditch penalty for ranged type', () => {
     resetUnitIdCounter();
-    const attacker = createUnit('archer', { col: 6, row: 3 }); // CV 3, ranged
+    const attacker = createUnit('archer', { col: 5, row: 3 }); // CV 3, ranged
     const defender = createUnit('goblin', ditchCoord); // CV 2
 
     // Ranged attacker: ditchAttackModifier should be 0 (computed upstream)

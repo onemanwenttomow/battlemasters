@@ -69,7 +69,7 @@ export function createDefaultBoard(): BoardState {
         elevation: 0,
       };
       if (terrain === 'ditch') {
-        tile.orientation = 0; // E/W open by default
+        tile.orientation = 1; // NE+NW open — openings face toward (8,4) and (7,4)
       }
       tiles.set(coordToKey(coord), tile);
     }
@@ -138,12 +138,13 @@ export function getDitchAttackModifier(
   return -1;
 }
 
-/** Get ditch defense modifier: +1 when attacked across a fortified ditch edge */
+/** Get ditch defense modifier: +1 when defender is in a ditch tile */
 export function getDitchDefenseModifier(
   board: BoardState,
-  attackerPos: HexCoord,
+  _attackerPos: HexCoord,
   defenderPos: HexCoord,
 ): number {
-  if (!isFortifiedEdge(board, attackerPos, defenderPos)) return 0;
-  return 1;
+  const defenderTile = board.tiles.get(coordToKey(defenderPos));
+  if (defenderTile?.terrain === 'ditch') return 1;
+  return 0;
 }

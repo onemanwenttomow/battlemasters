@@ -277,10 +277,10 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
           {phaseLabel}
         </div>
 
-        {/* Attacker results summary — shown once attack dice settle */}
-        {showAttackerSummary && (
-          <DiceSummary label="Attack" dice={attackerResults} labelColor="#ff8844" highlight="skull" />
-        )}
+        {/* Attacker results summary — space always reserved to prevent layout shift */}
+        <div style={{ visibility: showAttackerSummary ? 'visible' : 'hidden' }}>
+          <DiceSummary label="Attack" dice={attackerResults.length > 0 ? attackerResults : ['blank']} labelColor="#ff8844" highlight="skull" />
+        </div>
 
         {/* 3D Dice Canvas */}
         <div
@@ -294,21 +294,22 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
           }}
         />
 
-        {/* Defender results summary — shown once defense dice settle */}
-        {showDefenderSummary && (
-          <DiceSummary label="Defense" dice={defenderResults} labelColor="#4488ff" highlight="shield" />
-        )}
+        {/* Defender results summary — space always reserved to prevent layout shift */}
+        <div style={{ visibility: showDefenderSummary ? 'visible' : 'hidden' }}>
+          <DiceSummary label="Defense" dice={defenderResults.length > 0 ? defenderResults : ['blank']} labelColor="#4488ff" highlight="shield" />
+        </div>
 
-        {/* Result */}
+        {/* Result — space always reserved to prevent layout shift */}
         <div style={{
           minHeight: 50,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginTop: 8,
+          visibility: (phase === 'result' && event?.type === 'melee') ? 'visible' : 'hidden',
         }}>
-          {phase === 'result' && event?.type === 'melee' && (
-            <div style={{ animation: 'resultSlam 0.4s ease-out' }}>
+          {event?.type === 'melee' && (
+            <div style={{ animation: phase === 'result' ? 'resultSlam 0.4s ease-out' : 'none' }}>
               <div style={{
                 fontSize: '1.3rem',
                 fontWeight: 'bold',
@@ -337,17 +338,16 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
           )}
         </div>
 
-        {/* Dismiss hint */}
-        {phase === 'result' && (
-          <div style={{
-            fontSize: '0.6rem',
-            color: '#444',
-            marginTop: 8,
-            animation: 'labelFadeIn 0.4s ease-out 0.3s both',
-          }}>
-            Click to dismiss
-          </div>
-        )}
+        {/* Dismiss hint — space always reserved */}
+        <div style={{
+          fontSize: '0.6rem',
+          color: '#444',
+          marginTop: 8,
+          visibility: phase === 'result' ? 'visible' : 'hidden',
+          animation: phase === 'result' ? 'labelFadeIn 0.4s ease-out 0.3s both' : 'none',
+        }}>
+          Click to dismiss
+        </div>
       </div>
     </div>
   );

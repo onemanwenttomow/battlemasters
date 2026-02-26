@@ -1,6 +1,6 @@
 import { GameState, GameAction, Unit, HexCoord, coordToKey } from './types.js';
 import { getUnitDefinition } from './units.js';
-import { hexDistance, getReachableHexes, getNeighbors } from './hex.js';
+import { hexDistance, getReachableHexes, getNeighbors, isFortifiedEdge } from './hex.js';
 import { getTile } from './board.js';
 
 export interface ValidationResult {
@@ -336,11 +336,14 @@ function validateEndCannonFire(state: GameState): ValidationResult {
 
 // ─── Helper ────────────────────────────────────────────────────
 
-/** Check if a unit has an adjacent enemy (engaged in hand-to-hand combat) */
+/** Check if a unit has an adjacent enemy (engaged in hand-to-hand combat).
+ *  Enemies separated by a fortified ditch edge don't count as engaging. */
 export function isEngagedInMelee(state: GameState, unit: Unit): boolean {
   for (const [, other] of state.units) {
     if (other.faction === unit.faction) continue;
     if (hexDistance(unit.position, other.position) === 1) {
+      // Fortified ditch edges block melee engagement
+      if (isFortifiedEdge(state.board, unit.position, other.position)) continue;
       return true;
     }
   }
