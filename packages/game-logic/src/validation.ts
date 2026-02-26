@@ -83,12 +83,6 @@ function validateSelectUnit(state: GameState, unitId: string): ValidationResult 
     return { valid: false, reason: 'Card does not activate this unit type' };
   }
 
-  // Check activation count limit
-  const activatedCount = state.activatedUnitIds.length;
-  if (activatedCount >= state.currentCard.count) {
-    return { valid: false, reason: 'Maximum activations reached for this card' };
-  }
-
   return { valid: true };
 }
 

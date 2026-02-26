@@ -1,4 +1,4 @@
-import { GameState, GameAction, Faction, coordToKey, HexCoord, CannonFireState, CannonTileResult, TowerState } from './types.js';
+import { GameState, GameAction, Faction, coordToKey, edgeKey, HexCoord, CannonFireState, CannonTileResult, TowerState } from './types.js';
 import { createDefaultBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter, getUnitDefinition } from './units.js';
 import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
@@ -6,6 +6,7 @@ import { resolveCombat, resolveCombatWithRolls } from './combat.js';
 import { getTile, getDitchAttackModifier, getDitchDefenseModifier } from './board.js';
 import { validateAction } from './validation.js';
 import { hexDistance, getShortestPaths } from './hex.js';
+import { getScenarioById } from './scenarios.js';
 
 // ─── State Creation ────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
   switch (action.type) {
     case 'START_GAME':
-      return handleStartGame(state);
+      return handleStartGame(state, action.scenarioId);
     case 'DRAW_CARD':
       return handleDrawCard(state);
     case 'SELECT_UNIT':
@@ -111,17 +112,46 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
 // ─── Action Handlers ───────────────────────────────────────────
 
-function handleStartGame(state: GameState): GameState {
+function handleStartGame(state: GameState, scenarioId?: string): GameState {
   const newState = cloneState(state);
   const rng = createRNG(state.seed);
 
+  const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
+
   // Place units
-  const imperialArmy = getDefaultImperialArmy();
-  const chaosArmy = getDefaultChaosArmy();
+  const imperialArmy = scenario ? scenario.imperialArmy : getDefaultImperialArmy();
+  const chaosArmy = scenario ? scenario.chaosArmy : getDefaultChaosArmy();
 
   for (const setup of [...imperialArmy.units, ...chaosArmy.units]) {
     const unit = createUnit(setup.type, setup.position);
     newState.units.set(unit.id, unit);
+  }
+
+  // Apply board terrain overrides for scenario
+  if (scenario?.boardOverrides) {
+    const overrides = scenario.boardOverrides;
+    if (overrides.terrain) {
+      const newTiles = new Map(newState.board.tiles);
+      for (const override of overrides.terrain) {
+        const key = coordToKey(override.coord);
+        const existing = newTiles.get(key);
+        if (existing) {
+          newTiles.set(key, { ...existing, terrain: override.terrain, orientation: override.orientation });
+        }
+      }
+      newState.board = { ...newState.board, tiles: newTiles };
+    }
+    if (overrides.hedges !== undefined) {
+      const newHedges = new Set<string>();
+      for (const [a, b] of overrides.hedges) {
+        newHedges.add(edgeKey(a, b));
+      }
+      newState.board = { ...newState.board, hedges: newHedges };
+    }
+  }
+
+  if (scenarioId) {
+    newState.scenarioId = scenarioId;
   }
 
   // Create and shuffle the battle deck
@@ -234,6 +264,16 @@ function handleMoveUnit(state: GameState, unitId: string, to: HexCoord): GameSta
 
   unit.position = { ...to };
   unit.hasMoved = true;
+
+  // Check scenario capture_hex win condition after move
+  if (newState.scenarioId) {
+    const winner = checkWinCondition(newState);
+    if (winner) {
+      newState.winner = winner;
+      newState.currentPhase = 'game_over';
+      return newState;
+    }
+  }
 
   // If moving during cannon_fire phase, end the turn (move OR fire)
   if (newState.currentPhase === 'cannon_fire') {
@@ -895,7 +935,6 @@ function endCannonFireTurn(state: GameState): GameState {
 
 function canActivateMore(state: GameState): boolean {
   if (!state.currentCard) return false;
-  if (state.activatedUnitIds.length >= state.currentCard.count) return false;
 
   // Check if there are eligible units that haven't activated
   for (const [id, unit] of state.units) {
@@ -910,6 +949,24 @@ function canActivateMore(state: GameState): boolean {
 }
 
 function checkWinCondition(state: GameState): Faction | null {
+  // Check scenario-specific win conditions first
+  if (state.scenarioId) {
+    const scenario = getScenarioById(state.scenarioId);
+    if (scenario) {
+      for (const wc of scenario.winConditions) {
+        if (wc.type === 'capture_hex' && wc.targetCoord) {
+          const targetKey = coordToKey(wc.targetCoord);
+          for (const [, unit] of state.units) {
+            if (unit.faction === wc.faction && coordToKey(unit.position) === targetKey) {
+              return wc.faction;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Standard elimination check
   let hasImperial = false;
   let hasChaos = false;
 

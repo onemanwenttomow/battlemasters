@@ -55,6 +55,7 @@ export function MainMenu() {
       </button>
 
       <div style={{ marginTop: 24, display: 'flex', gap: 16 }}>
+        <SmallBtn label="Campaign" onClick={() => setScreen('scenario_select')} />
         <SmallBtn label="Quick Game" onClick={handleStartGame} />
         <SmallBtn label="Settings" onClick={() => {}} disabled />
       </div>

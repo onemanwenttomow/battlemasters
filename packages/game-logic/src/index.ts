@@ -7,3 +7,4 @@ export * from './cards.js';
 export * from './game-state.js';
 export * from './actions.js';
 export * from './validation.js';
+export * from './scenarios.js';

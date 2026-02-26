@@ -97,17 +97,15 @@ describe('game flow', () => {
     let s = applyAction(state, { type: 'DRAW_CARD' });
     const card = s.currentCard!;
 
-    // Select and end activation for each allowed unit
-    for (let i = 0; i < card.count; i++) {
-      const eligible = [...s.units.values()].find(
-        u =>
-          u.faction === card.faction &&
-          card.unitTypes.includes(u.definitionType) &&
-          !u.hasActivated &&
-          !s.activatedUnitIds.includes(u.id)
-      );
-      if (!eligible) break;
-
+    // Select and end activation for all eligible units
+    let eligible;
+    while ((eligible = [...s.units.values()].find(
+      u =>
+        u.faction === card.faction &&
+        card.unitTypes.includes(u.definitionType) &&
+        !u.hasActivated &&
+        !s.activatedUnitIds.includes(u.id)
+    ))) {
       s = applyAction(s, { type: 'SELECT_UNIT', unitId: eligible.id });
       s = applyAction(s, { type: 'END_ACTIVATION' });
     }

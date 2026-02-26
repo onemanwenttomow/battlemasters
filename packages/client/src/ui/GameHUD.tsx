@@ -72,7 +72,7 @@ export function GameHUD() {
           <div style={{ fontSize: '0.7rem', color: '#aaa' }}>
             {state.currentCard.special
               ? state.currentCard.special.replace('_', ' ')
-              : `Activate ${state.currentCard.count}`}
+              : ''}
           </div>
           {state.currentPhase === 'ogre_rampage' ? (
             <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
@@ -96,7 +96,7 @@ export function GameHUD() {
             </div>
           ) : (
             <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
-              {state.activatedUnitIds.length} / {Math.min(state.currentCard.count, 99)} activated
+              {state.activatedUnitIds.length} activated
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { HexCoord } from '@battle-masters/game-logic';
 
-type Screen = 'menu' | 'game' | 'victory';
+type Screen = 'menu' | 'game' | 'victory' | 'scenario_select';
 
 interface PendingAttack {
   attackerId: string;

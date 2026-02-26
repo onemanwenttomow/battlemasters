@@ -31,7 +31,7 @@ interface GameStore {
   validAttackTargetIds: () => string[];
 
   // Actions
-  initGame: (seed?: number) => void;
+  initGame: (seed?: number, scenarioId?: string) => void;
   dispatch: (action: GameAction) => void;
   syncState: (serverState: GameState) => void;
 }
@@ -62,9 +62,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return getValidAttackTargets(s, s.selectedUnitId);
   },
 
-  initGame: (seed) => {
+  initGame: (seed, scenarioId) => {
     const initial = createInitialState(seed);
-    const started = applyAction(initial, { type: 'START_GAME' });
+    const started = applyAction(initial, { type: 'START_GAME', scenarioId });
     set({ state: started });
   },
 

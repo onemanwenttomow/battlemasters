@@ -206,7 +206,7 @@ export type GamePhase =
 // ─── Game Actions ──────────────────────────────────────────────
 
 export type GameAction =
-  | { type: 'START_GAME' }
+  | { type: 'START_GAME'; scenarioId?: string }
   | { type: 'DRAW_CARD' }
   | { type: 'SELECT_UNIT'; unitId: string }
   | { type: 'MOVE_UNIT'; unitId: string; to: HexCoord }
@@ -245,6 +245,8 @@ export interface GameState {
   cannonFireState: CannonFireState | null;
   // Tower state
   towerState: TowerState;
+  // Scenario
+  scenarioId?: string;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
