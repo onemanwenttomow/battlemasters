@@ -4,6 +4,7 @@ import {
   HexCoord,
   TerrainType,
   coordToKey,
+  edgeKey,
 } from "./types.js";
 import { isFortifiedEdge } from "./hex.js";
 import { getUnitDefinition } from "./units.js";
@@ -75,10 +76,16 @@ export function createDefaultBoard(): BoardState {
     }
   }
 
+  // Place hedges on specific edges
+  const hedges = new Set<string>();
+  hedges.add(edgeKey({ col: 4, row: 5 }, { col: 4, row: 4 }));
+  hedges.add(edgeKey({ col: 10, row: 4 }, { col: 10, row: 5 }));
+
   return {
     width: BOARD_WIDTH,
     height: BOARD_HEIGHT,
     tiles,
+    hedges,
   };
 }
 

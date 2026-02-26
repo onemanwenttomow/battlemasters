@@ -85,6 +85,14 @@ export interface BoardState {
   width: number;
   height: number;
   tiles: Map<string, HexTile>;
+  hedges: Set<string>;
+}
+
+/** Canonical edge key for the border between two adjacent hexes */
+export function edgeKey(a: HexCoord, b: HexCoord): string {
+  const ak = `${a.col},${a.row}`;
+  const bk = `${b.col},${b.row}`;
+  return ak < bk ? `${ak}|${bk}` : `${bk}|${ak}`;
 }
 
 // ─── Combat ────────────────────────────────────────────────────

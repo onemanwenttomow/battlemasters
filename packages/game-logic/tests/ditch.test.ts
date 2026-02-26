@@ -21,7 +21,7 @@ function createBoardWithDitch(ditchCoord: HexCoord, orientation: number): BoardS
       });
     }
   }
-  return { width: 15, height: 12, tiles };
+  return { width: 15, height: 12, tiles, hedges: new Set() };
 }
 
 describe('ditch on default board', () => {

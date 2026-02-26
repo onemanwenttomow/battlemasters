@@ -933,6 +933,7 @@ function cloneState(state: GameState): GameState {
 
   return {
     ...state,
+    board: { ...state.board, hedges: new Set(state.board.hedges) },
     units: newUnits,
     battleDeck: [...state.battleDeck],
     discardPile: [...state.discardPile],

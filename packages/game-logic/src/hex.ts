@@ -1,4 +1,4 @@
-import { HexCoord, BoardState, coordToKey, HexTile } from './types.js';
+import { HexCoord, BoardState, coordToKey, edgeKey, HexTile } from './types.js';
 
 // ─── Hex Constants ─────────────────────────────────────────────
 
@@ -147,6 +147,11 @@ export function isFortifiedEdge(board: BoardState, from: HexCoord, to: HexCoord)
   return false;
 }
 
+/** Check if the edge between two adjacent hexes has a hedge */
+export function isHedgeEdge(board: BoardState, from: HexCoord, to: HexCoord): boolean {
+  return board.hedges.has(edgeKey(from, to));
+}
+
 // ─── Distance ──────────────────────────────────────────────────
 
 /** Manhattan distance between two hexes in cube coordinates */
@@ -201,6 +206,9 @@ export function getReachableHexes(
 
       // Can't cross fortified ditch edges
       if (isFortifiedEdge(board, coord, neighbor)) continue;
+
+      // Can't cross hedge edges
+      if (isHedgeEdge(board, coord, neighbor)) continue;
 
       // Can't move through occupied hexes (but can stop on them if they're empty)
       if (occupiedHexes.has(key)) continue;

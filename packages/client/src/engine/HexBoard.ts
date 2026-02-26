@@ -4,6 +4,7 @@ import {
   HexTile,
   TerrainType,
   coordToKey,
+  keyToCoord,
   getNeighbors,
   getNeighborDirection,
 } from "@battle-masters/game-logic";
@@ -294,6 +295,7 @@ export class HexBoard {
     }
 
     this.placeScatterDecorations(board);
+    this.placeHedges(board);
   }
 
   private createHexTile(tile: HexTile, board: BoardState) {
@@ -472,7 +474,11 @@ export class HexBoard {
         stakeGroup.position.set(px, this.tileTopY, pz);
 
         // Tilt outward using axis-angle rotation around the edge-along axis
-        const alongEdge = new THREE.Vector3(Math.sin(edgeAngle), 0, Math.cos(edgeAngle));
+        const alongEdge = new THREE.Vector3(
+          Math.sin(edgeAngle),
+          0,
+          Math.cos(edgeAngle),
+        );
         stakeGroup.quaternion.setFromAxisAngle(alongEdge, -tiltAngle);
 
         // Shaft (box)
@@ -495,7 +501,7 @@ export class HexBoard {
       const railLen = edgeHalfLen * 2;
       const railGeo = new THREE.BoxGeometry(railLen, 0.025, 0.025);
 
-      for (const railY of [0.03, 0.10]) {
+      for (const railY of [0.03, 0.1]) {
         const rail = new THREE.Mesh(railGeo, woodMat);
         rail.position.set(cx, this.tileTopY + railY, cz);
         rail.rotation.y = fenceRotY;
@@ -508,6 +514,110 @@ export class HexBoard {
     }
 
     return results;
+  }
+
+  /** Place hedge meshes on all hedge edges */
+  private placeHedges(board: BoardState) {
+    for (const key of board.hedges) {
+      const [aStr, bStr] = key.split("|");
+      const a = keyToCoord(aStr);
+      const b = keyToCoord(bStr);
+      const hedgeGroup = this.createHedgeOnEdge(a, b);
+      this.group.add(hedgeGroup);
+    }
+  }
+
+  /**
+   * Create a green hedge mesh on the edge between two adjacent hexes.
+   * The hedge is a row of bushy green shapes along the shared edge.
+   */
+  private createHedgeOnEdge(
+    a: { col: number; row: number },
+    b: { col: number; row: number },
+  ): THREE.Group {
+    const posA = hexToWorld(a);
+    const posB = hexToWorld(b);
+
+    // Edge midpoint
+    const mx = (posA.x + posB.x) / 2;
+    const mz = (posA.z + posB.z) / 2;
+
+    // Direction along the edge (perpendicular to line between hex centers)
+    const dx = posB.x - posA.x;
+    const dz = posB.z - posA.z;
+    // Perpendicular: rotate 90°
+    const px = -dz;
+    const pz = dx;
+    const pLen = Math.sqrt(px * px + pz * pz);
+    const nx = px / pLen;
+    const nz = pz / pLen;
+
+    const group = new THREE.Group();
+
+    const hedgeMat = new THREE.MeshStandardMaterial({
+      color: 0x2d6a1e,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0x4a3520,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+
+    const edgeHalfLen = HEX_SIZE * 0.48;
+    const bushCount = 9;
+    const bushHeight = 0.2;
+    const bushWidth = 0.15;
+    const bushDepth = 0.1;
+
+    for (let i = 0; i < bushCount; i++) {
+      const t = (i / (bushCount - 1) - 0.5) * 2 * edgeHalfLen;
+      const bx = mx + nx * t;
+      const bz = mz + nz * t;
+
+      // Bush body (slightly randomized scale for organic look)
+      const scaleVar = 0.85 + (i % 3) * 0.1;
+      const bushGeo = new THREE.SphereGeometry(
+        bushWidth * 0.5 * scaleVar,
+        6,
+        5,
+      );
+      const bush = new THREE.Mesh(bushGeo, hedgeMat);
+      bush.position.set(bx, this.tileTopY + bushHeight * 0.5, bz);
+      bush.scale.set(
+        1,
+        bushHeight / (bushWidth * scaleVar),
+        bushDepth / (bushWidth * scaleVar),
+      );
+      bush.castShadow = true;
+      bush.receiveShadow = true;
+      group.add(bush);
+
+      // Small upper crown on alternating bushes for variation
+      if (i % 2 === 0) {
+        const crownGeo = new THREE.SphereGeometry(bushWidth * 0.35, 5, 4);
+        const crown = new THREE.Mesh(crownGeo, hedgeMat);
+        crown.position.set(bx, this.tileTopY + bushHeight * 0.85, bz);
+        crown.scale.set(1, 0.8, bushDepth / (bushWidth * 0.7));
+        crown.castShadow = true;
+        group.add(crown);
+      }
+    }
+
+    // Horizontal trunk/branch running along the hedge base
+    const trunkLen = edgeHalfLen * 2;
+    const trunkGeo = new THREE.BoxGeometry(trunkLen, 0.085, 0.085);
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.set(mx, this.tileTopY + 0.02, mz);
+    // Rotate trunk to align with edge direction
+    trunk.rotation.y = Math.atan2(-nz, nx);
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    group.add(trunk);
+
+    return group;
   }
 
   /** Scatter small decorations (flowers, grass, bushes) on eligible tiles */
