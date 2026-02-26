@@ -45,51 +45,18 @@ function readTopFace(quat: THREE.Quaternion): DieResult {
   return FACE_MAP[bestIndex];
 }
 
-function createFaceTexture(symbol: string, color: string, bgColor: string): THREE.CanvasTexture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  // Background
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, size, size);
-
-  // Subtle border/bevel
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(8, 8, size - 16, size - 16);
-
-  // Symbol
-  ctx.fillStyle = color;
-  ctx.font = 'bold 140px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(symbol, size / 2, size / 2 + 4);
-
-  // Glow effect
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 20;
-  ctx.fillText(symbol, size / 2, size / 2 + 4);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
+const FACE_IMAGES: Record<DieResult, string> = {
+  skull: '/assets/dice/skull.png',
+  shield: '/assets/dice/shield.png',
+  blank: '/assets/dice/blank.png',
+};
 
 function createDiceMaterials(): THREE.MeshStandardMaterial[] {
-  const matParams: Record<DieResult, { symbol: string; color: string }> = {
-    skull: { symbol: '\u2620', color: '#ff4444' },
-    shield: { symbol: '\u26E8', color: '#4488ff' },
-    blank: { symbol: '\u25CB', color: '#888888' },
-  };
-
-  const bgColor = '#1a1a2e';
+  const loader = new THREE.TextureLoader();
 
   return FACE_MAP.map((face) => {
-    const { symbol, color } = matParams[face];
-    const texture = createFaceTexture(symbol, color, bgColor);
+    const texture = loader.load(FACE_IMAGES[face]);
+    texture.colorSpace = THREE.SRGBColorSpace;
     return new THREE.MeshStandardMaterial({
       map: texture,
       roughness: 0.4,

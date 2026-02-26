@@ -65,5 +65,53 @@
     "sfx": {},
     "music": {}
   },
-  "ui": {}
+  "ui": {
+    "cards": {
+      "back": "/assets/cards/card-back.png",
+      "imperial": {
+        "all_move": "/assets/cards/playing-card-13.png",
+        "men_at_arms_archer": "/assets/cards/playing-card-14.png",
+        "cannon_fire": "/assets/cards/playing-card-15.png",
+        "archer": "/assets/cards/playing-card-16.png",
+        "imperial_knights": "/assets/cards/playing-card-17.png",
+        "men_at_arms_crossbowman_archer": "/assets/cards/playing-card-18.png",
+        "lord_knights": "/assets/cards/playing-card-19.png",
+        "imperial_knights_lord_knights": "/assets/cards/playing-card-20.png",
+        "lord_knights_charge": "/assets/cards/playing-card-21.png",
+        "imperial_knights_lord_knights_charge": "/assets/cards/playing-card-22.png"
+      },
+      "chaos": {
+        "all_move": "/assets/cards/playing-card-23.png",
+        "goblin_champions_beastman": "/assets/cards/playing-card-1.png",
+        "chaos_warrior_champions_bowman": "/assets/cards/playing-card-2.png",
+        "champions_charge": "/assets/cards/playing-card-3.png",
+        "goblin_orc": "/assets/cards/playing-card-4.png",
+        "champions_wolf_rider": "/assets/cards/playing-card-5.png",
+        "wolf_rider_double_move": "/assets/cards/playing-card-6.png",
+        "ogre_rampage": "/assets/cards/playing-card-7.png",
+        "goblin_beastman_wolf_rider": "/assets/cards/playing-card-8.png",
+        "goblin_wolf_rider": "/assets/cards/playing-card-9.png",
+        "beastman_orc_goblin": "/assets/cards/playing-card-10.png",
+        "chaos_warrior_beastman_orc_bowman_goblin": "/assets/cards/playing-card-11.png",
+        "bowman_champions": "/assets/cards/playing-card-12.png"
+      }
+    },
+    "dice": {
+      "skull": "/assets/dice/skull.png",
+      "shield": "/assets/dice/shield.png",
+      "blank": "/assets/dice/blank.png",
+      "damage": "/assets/dice/damage.png"
+    },
+    "cannon": {
+      "fly": "/assets/cards/cannon/canon-fly.png",
+      "bounce": "/assets/cards/cannon/canon-bounce.png",
+      "explosion": "/assets/cards/cannon/canon-explosion.png",
+      "target": "/assets/cards/cannon/canon-target.png"
+    },
+    "ogre": {
+      "attack": "/assets/cards/ogre/ogre-attack-card.png",
+      "move": "/assets/cards/ogre/ogre-move-card.png",
+      "back": "/assets/cards/ogre/ogre-back.png"
+    }
+  }
 }

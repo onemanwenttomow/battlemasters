@@ -1,6 +1,7 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
+import { getCardImage } from './cardImages';
 
 const FACTION_LABELS = {
   imperial: 'Imperial Army',
@@ -61,19 +62,31 @@ export function GameHUD() {
         <div style={{
           background: 'rgba(0,0,0,0.7)',
           borderRadius: 8,
-          padding: '8px 16px',
+          padding: '8px 12px',
           border: `2px solid ${factionColor}`,
           textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
         }}>
-          <div style={{ fontSize: '0.7rem', color: '#888' }}>Battle Card</div>
-          <div style={{ fontSize: '0.85rem', color: factionColor, fontWeight: 'bold' }}>
+          <img
+            src={getCardImage(state.currentCard)}
+            alt="Battle Card"
+            style={{
+              width: 120,
+              height: 'auto',
+              borderRadius: 4,
+              marginBottom: 6,
+            }}
+          />
+          <div style={{ fontSize: '0.75rem', color: factionColor, fontWeight: 'bold' }}>
             {state.currentCard.unitTypes.map(t => getUnitDefinition(t).name).join(', ')}
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#aaa' }}>
-            {state.currentCard.special
-              ? state.currentCard.special.replace('_', ' ')
-              : ''}
-          </div>
+          {state.currentCard.special && (
+            <div style={{ fontSize: '0.65rem', color: '#aaa' }}>
+              {state.currentCard.special.replace('_', ' ')}
+            </div>
+          )}
           {state.currentPhase === 'ogre_rampage' ? (
             <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 2 }}>
               Sub-card {state.ogreSubCardIndex} / {state.ogreSubCardsTotal}

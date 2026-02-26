@@ -2,10 +2,10 @@ import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import type { CombatEvent, MeleeCombatEvent, CannonFireEvent } from '@battle-masters/game-logic';
 
-const DIE_SYMBOLS = {
-  skull: '\u2620',
-  shield: '\u26E8',
-  blank: '\u25CB',
+const DIE_IMAGES: Record<string, string> = {
+  skull: '/assets/dice/skull.png',
+  shield: '/assets/dice/shield.png',
+  blank: '/assets/dice/blank.png',
 };
 
 const TILE_SYMBOLS: Record<string, string> = {
@@ -28,14 +28,15 @@ function MeleeCombatEntry({ event }: { event: MeleeCombatEvent }) {
         {' vs '}
         <span style={{ color: '#4488ff' }}>{event.defenderName}</span>
       </div>
-      <div>
-        <span style={{ color: '#ff8844' }}>
-          ATK: {event.result.attackerRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
-        </span>
-        {' '}
-        <span style={{ color: '#4488ff' }}>
-          DEF: {event.result.defenderRolls.map(r => DIE_SYMBOLS[r]).join(' ')}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <span style={{ color: '#ff8844', fontSize: '0.6rem' }}>ATK:</span>
+        {event.result.attackerRolls.map((r, i) => (
+          <img key={`a${i}`} src={DIE_IMAGES[r]} alt={r} style={{ width: 14, height: 14, verticalAlign: 'middle' }} />
+        ))}
+        <span style={{ color: '#4488ff', fontSize: '0.6rem', marginLeft: 4 }}>DEF:</span>
+        {event.result.defenderRolls.map((r, i) => (
+          <img key={`d${i}`} src={DIE_IMAGES[r]} alt={r} style={{ width: 14, height: 14, verticalAlign: 'middle' }} />
+        ))}
       </div>
       <div>
         {event.result.damage > 0 ? (

@@ -4,10 +4,10 @@ import { useUIStore } from '../store/uiStore';
 import type { Effects } from '../engine/Effects';
 import type { CannonTileType } from '@battle-masters/game-logic';
 
-const TILE_CONFIG: Record<CannonTileType, { label: string; color: string; icon: string }> = {
-  flying: { label: 'Flying Cannonball', color: '#4488ff', icon: 'F' },
-  bouncing: { label: 'Bouncing Cannonball', color: '#ffaa44', icon: 'B' },
-  explosion: { label: 'Explosion!', color: '#ff3333', icon: 'X' },
+const TILE_CONFIG: Record<CannonTileType, { label: string; color: string; image: string }> = {
+  flying: { label: 'Flying Cannonball', color: '#4488ff', image: '/assets/cards/cannon/canon-fly.png' },
+  bouncing: { label: 'Bouncing Cannonball', color: '#ffaa44', image: '/assets/cards/cannon/canon-bounce.png' },
+  explosion: { label: 'Explosion!', color: '#ff3333', image: '/assets/cards/cannon/canon-explosion.png' },
 };
 
 interface CannonFireOverlayProps {
@@ -92,21 +92,15 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
           const isLast = i === cfs.placedTiles.length - 1;
           return (
             <div key={i} style={{
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               borderRadius: 6,
-              background: isLast ? 'rgba(0,0,0,0.8)' : cfg.color,
               border: `2px solid ${cfg.color}`,
               opacity: isLast ? 1 : 0.7,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.85rem',
-              fontWeight: 'bold',
-              color: isLast ? cfg.color : '#000',
+              overflow: 'hidden',
               transition: 'all 0.2s ease-out',
             }}>
-              {cfg.icon}
+              <img src={cfg.image} alt={pt.tile.type} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           );
         })}

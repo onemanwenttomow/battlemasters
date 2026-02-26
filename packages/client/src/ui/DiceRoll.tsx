@@ -22,10 +22,10 @@ const DIE_COLORS: Record<DieResult, string> = {
   blank: '#888888',
 };
 
-const DIE_SYMBOLS: Record<DieResult, string> = {
-  skull: '\u2620',
-  shield: '\u26E8',
-  blank: '\u25CB',
+const DIE_IMAGES: Record<DieResult, string> = {
+  skull: '/assets/dice/skull.png',
+  shield: '/assets/dice/shield.png',
+  blank: '/assets/dice/blank.png',
 };
 
 // Inject keyframes once
@@ -386,17 +386,15 @@ function DiceSummary({ label, dice, labelColor, highlight }: {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 24,
-              height: 24,
+              width: 28,
+              height: 28,
               borderRadius: 4,
               border: `1px solid ${isHighlighted ? DIE_COLORS[result] : DIE_COLORS[result] + '33'}`,
               background: isHighlighted ? DIE_COLORS[result] + '25' : 'rgba(255,255,255,0.02)',
-              fontSize: '0.85rem',
-              color: isHighlighted ? DIE_COLORS[result] : '#555',
               boxShadow: isHighlighted ? `0 0 8px ${DIE_COLORS[result]}44` : 'none',
               opacity: isHighlighted ? 1 : 0.5,
             }}>
-              {DIE_SYMBOLS[result]}
+              <img src={DIE_IMAGES[result]} alt={result} style={{ width: 22, height: 22 }} />
             </span>
           );
         })}
