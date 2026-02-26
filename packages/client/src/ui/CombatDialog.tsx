@@ -5,6 +5,8 @@ import {
   coordToKey,
   hexDistance,
   getCombatDiceCounts,
+  getDitchAttackModifier,
+  getDitchDefenseModifier,
 } from '@battle-masters/game-logic';
 import type { TerrainType } from '@battle-masters/game-logic';
 
@@ -33,12 +35,16 @@ export function CombatDialog() {
 
   const distance = hexDistance(attacker.position, defender.position);
   const chargeBonus = state.currentCard?.special === 'CHARGE' ? 1 : 0;
+  const ditchAttackModifier = getDitchAttackModifier(state.board, attacker.position, defender.position, attacker.definitionType);
+  const ditchDefenseModifier = getDitchDefenseModifier(state.board, attacker.position, defender.position);
 
   const { attackDice, defenseDice } = getCombatDiceCounts(attacker, defender, {
     attackerTerrain,
     defenderTerrain,
     distance,
     chargeBonus,
+    ditchAttackModifier,
+    ditchDefenseModifier,
   });
 
   const handleRollDice = () => {
@@ -109,6 +115,10 @@ export function CombatDialog() {
             label="Attacker"
             diceCount={attackDice}
             diceColor="#ff8844"
+            modifiers={[
+              ...(chargeBonus > 0 ? [{ label: '+1 Charge', color: '#ff8844' }] : []),
+              ...(ditchAttackModifier < 0 ? [{ label: `${ditchAttackModifier} Ditch`, color: '#cc4444' }] : []),
+            ]}
           />
           <div style={{
             display: 'flex',
@@ -129,6 +139,9 @@ export function CombatDialog() {
             label="Defender"
             diceCount={defenseDice}
             diceColor="#4488ff"
+            modifiers={[
+              ...(ditchDefenseModifier > 0 ? [{ label: `+${ditchDefenseModifier} Ditch`, color: '#44aa44' }] : []),
+            ]}
           />
         </div>
 
@@ -169,7 +182,7 @@ export function CombatDialog() {
   );
 }
 
-function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, diceColor }: {
+function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, diceColor, modifiers = [] }: {
   name: string;
   faction: 'imperial' | 'chaos';
   cv: number;
@@ -179,6 +192,7 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
   label: string;
   diceCount: number;
   diceColor: string;
+  modifiers?: { label: string; color: string }[];
 }) {
   const color = FACTION_COLORS[faction];
 
@@ -194,9 +208,26 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
         <span style={{ color: '#888' }}>HP: </span>
         <span style={{ color: hp < maxHp ? '#ff6666' : '#88cc88', fontWeight: 'bold' }}>{hp}/{maxHp}</span>
       </div>
-      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 8 }}>
+      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 4 }}>
         {terrain}
       </div>
+      {modifiers.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+          {modifiers.map((mod, i) => (
+            <span key={i} style={{
+              fontSize: '0.6rem',
+              fontWeight: 'bold',
+              color: mod.color,
+              background: `${mod.color}22`,
+              border: `1px solid ${mod.color}66`,
+              borderRadius: 4,
+              padding: '1px 5px',
+            }}>
+              {mod.label}
+            </span>
+          ))}
+        </div>
+      )}
       {/* Dice count */}
       <div style={{
         display: 'flex',

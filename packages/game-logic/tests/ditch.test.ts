@@ -54,16 +54,16 @@ describe('getNeighborDirection', () => {
 });
 
 describe('isFortifiedEdge', () => {
-  // Ditch at (5,4) with orientation 0 (E/W open)
-  // Fortified edges: NE(1), NW(2), SW(4), SE(5)
+  // Ditch at (5,4) with orientation 0 (only E open)
+  // Fortified edges: NE(1), NW(2), W(3), SW(4), SE(5)
   const board = createBoardWithDitch({ col: 5, row: 4 }, 0);
 
   it('E edge is open (orientation 0)', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 4 })).toBe(false);
   });
 
-  it('W edge is open (orientation 0)', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(false);
+  it('W edge is fortified (orientation 0, single open side)', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(true);
   });
 
   it('NE edge is fortified (orientation 0)', () => {
@@ -96,15 +96,15 @@ describe('isFortifiedEdge', () => {
   });
 });
 
-describe('isFortifiedEdge orientation 1 (NE/SW open)', () => {
+describe('isFortifiedEdge orientation 1 (only NE open)', () => {
   const board = createBoardWithDitch({ col: 5, row: 4 }, 1);
 
   it('NE edge is open', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(false);
   });
 
-  it('SW edge is open', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(false);
+  it('SW edge is fortified (single open side)', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
   });
 
   it('E edge is fortified', () => {
@@ -116,15 +116,15 @@ describe('isFortifiedEdge orientation 1 (NE/SW open)', () => {
   });
 });
 
-describe('isFortifiedEdge orientation 2 (NW/SE open)', () => {
+describe('isFortifiedEdge orientation 2 (only NW open)', () => {
   const board = createBoardWithDitch({ col: 5, row: 4 }, 2);
 
   it('NW edge is open', () => {
     expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(false);
   });
 
-  it('SE edge is open', () => {
-    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(false);
+  it('SE edge is fortified (single open side)', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
   });
 
   it('E edge is fortified', () => {
@@ -134,7 +134,7 @@ describe('isFortifiedEdge orientation 2 (NW/SE open)', () => {
 
 describe('ditch movement blocking', () => {
   const ditchCoord = { col: 5, row: 4 };
-  const board = createBoardWithDitch(ditchCoord, 0); // E/W open
+  const board = createBoardWithDitch(ditchCoord, 0); // only E open
 
   it('can enter ditch from open side (E)', () => {
     const reachable = getReachableHexes({ col: 6, row: 4 }, 1, board);
@@ -142,10 +142,10 @@ describe('ditch movement blocking', () => {
     expect(keys).toContain(coordToKey(ditchCoord));
   });
 
-  it('can enter ditch from open side (W)', () => {
+  it('cannot enter ditch from fortified side (W)', () => {
     const reachable = getReachableHexes({ col: 4, row: 4 }, 1, board);
     const keys = reachable.map(c => coordToKey(c));
-    expect(keys).toContain(coordToKey(ditchCoord));
+    expect(keys).not.toContain(coordToKey(ditchCoord));
   });
 
   it('cannot enter ditch from fortified side (NE)', () => {
@@ -155,12 +155,11 @@ describe('ditch movement blocking', () => {
   });
 
   it('cannot exit ditch through fortified side', () => {
-    // Standing in the ditch, trying to move out through NW (fortified)
     const reachable = getReachableHexes(ditchCoord, 1, board);
     const keys = reachable.map(c => coordToKey(c));
-    // Should be able to reach E and W (open), but not NE/NW/SW/SE (fortified)
+    // Should be able to reach E (open), but not W/NE/NW/SW/SE (fortified)
     expect(keys).toContain(coordToKey({ col: 6, row: 4 })); // E - open
-    expect(keys).toContain(coordToKey({ col: 4, row: 4 })); // W - open
+    expect(keys).not.toContain(coordToKey({ col: 4, row: 4 })); // W - fortified
     expect(keys).not.toContain(coordToKey({ col: 5, row: 3 })); // NW - fortified
     expect(keys).not.toContain(coordToKey({ col: 6, row: 3 })); // NE - fortified
   });

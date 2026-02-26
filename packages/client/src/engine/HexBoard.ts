@@ -416,16 +416,16 @@ export class HexBoard {
   }
 
   /**
-   * Create procedural wooden fence fortifications on the 4 fortified edges of a ditch tile.
-   * Orientation determines which pair of opposite sides are open (no fence).
-   * Simple fence: vertical posts connected by two horizontal rails.
+   * Create procedural sharpened stake fortifications on the 5 fortified edges of a ditch tile.
+   * Orientation determines which single side is open (no stakes).
+   * Stakes lean outward at 45° with sharpened cone tips, connected by two horizontal rails.
    */
   private createDitchFortifications(
     tile: HexTile,
     pos: { x: number; z: number },
   ): THREE.Group[] {
     const orientation = tile.orientation ?? 0;
-    const openDirs = new Set([orientation, (orientation + 3) % 6]);
+    const openDir = orientation % 6;
 
     const results: THREE.Group[] = [];
     const woodMat = new THREE.MeshStandardMaterial({
@@ -434,15 +434,16 @@ export class HexBoard {
       metalness: 0.0,
     });
 
+    const tiltAngle = Math.PI / 4; // 45° outward lean
+
     for (let dir = 0; dir < 6; dir++) {
-      if (openDirs.has(dir)) continue;
+      if (dir === openDir) continue;
 
       const group = new THREE.Group();
 
       // Edge midpoint angle in world space (dir 0=E, each 60° apart)
-      // In Three.js XZ plane: +X=East, +Z=South, so negate Z for sin
       const edgeAngle = (Math.PI / 3) * dir;
-      const edgeDist = HEX_SIZE * 0.78;
+      const edgeDist = HEX_SIZE * 0.68;
 
       const cx = pos.x + Math.cos(edgeAngle) * edgeDist;
       const cz = pos.z - Math.sin(edgeAngle) * edgeDist;
@@ -452,30 +453,49 @@ export class HexBoard {
       const edgeHalfLen = HEX_SIZE * 0.42;
 
       // Fence rotation: the rail should run along the edge
-      const fenceRotY = -alongAngle;
+      const fenceRotY = alongAngle;
 
-      // 4 vertical posts evenly spaced along the edge
-      const postCount = 4;
-      const postHeight = 0.28;
-      const postGeo = new THREE.BoxGeometry(0.035, postHeight, 0.035);
+      // 12 stakes evenly spaced along the edge, leaning outward with sharpened tips
+      const postCount = 12;
+      const shaftHeight = 0.22;
+      const tipHeight = 0.08;
+      const shaftGeo = new THREE.BoxGeometry(0.03, shaftHeight, 0.03);
+      const tipGeo = new THREE.ConeGeometry(0.025, tipHeight, 4);
 
       for (let i = 0; i < postCount; i++) {
-        const t = ((i / (postCount - 1)) - 0.5) * 2 * edgeHalfLen;
+        const t = (i / (postCount - 1) - 0.5) * 2 * edgeHalfLen;
         const px = cx + Math.cos(alongAngle) * t;
         const pz = cz - Math.sin(alongAngle) * t;
 
-        const post = new THREE.Mesh(postGeo, woodMat);
-        post.position.set(px, this.tileTopY + postHeight / 2, pz);
-        post.castShadow = true;
-        post.receiveShadow = true;
-        group.add(post);
+        // Stake pivot group at the base
+        const stakeGroup = new THREE.Group();
+        stakeGroup.position.set(px, this.tileTopY, pz);
+
+        // Tilt outward using axis-angle rotation around the edge-along axis
+        const alongEdge = new THREE.Vector3(Math.sin(edgeAngle), 0, Math.cos(edgeAngle));
+        stakeGroup.quaternion.setFromAxisAngle(alongEdge, -tiltAngle);
+
+        // Shaft (box)
+        const shaft = new THREE.Mesh(shaftGeo, woodMat);
+        shaft.position.set(0, shaftHeight / 2, 0);
+        shaft.castShadow = true;
+        shaft.receiveShadow = true;
+        stakeGroup.add(shaft);
+
+        // Sharpened tip (cone)
+        const tip = new THREE.Mesh(tipGeo, woodMat);
+        tip.position.set(0, shaftHeight + tipHeight / 2, 0);
+        tip.castShadow = true;
+        stakeGroup.add(tip);
+
+        group.add(stakeGroup);
       }
 
       // Two horizontal rails
       const railLen = edgeHalfLen * 2;
       const railGeo = new THREE.BoxGeometry(railLen, 0.025, 0.025);
 
-      for (const railY of [0.1, 0.22]) {
+      for (const railY of [0.03, 0.10]) {
         const rail = new THREE.Mesh(railGeo, woodMat);
         rail.position.set(cx, this.tileTopY + railY, cz);
         rail.rotation.y = fenceRotY;
