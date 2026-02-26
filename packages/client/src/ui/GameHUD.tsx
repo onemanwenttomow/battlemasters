@@ -1,7 +1,7 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
-import { getCardImage } from './cardImages';
+import { getCardImage, getOgreSubCardImage } from './cardImages';
 
 const FACTION_LABELS = {
   imperial: 'Imperial Army',
@@ -70,7 +70,9 @@ export function GameHUD() {
           alignItems: 'center',
         }}>
           <img
-            src={getCardImage(state.currentCard)}
+            src={state.currentPhase === 'ogre_rampage' && state.currentOgreSubCard
+              ? getOgreSubCardImage(state.currentOgreSubCard.type)
+              : getCardImage(state.currentCard)}
             alt="Battle Card"
             style={{
               width: 120,

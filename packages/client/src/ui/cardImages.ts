@@ -21,6 +21,12 @@ export function getCardBackImage(): string {
   return CARD_BACK;
 }
 
+export function getOgreSubCardImage(type: 'ogre_move' | 'ogre_attack'): string {
+  return type === 'ogre_move'
+    ? '/assets/cards/ogre/ogre-move-card.png'
+    : '/assets/cards/ogre/ogre-attack-card.png';
+}
+
 // Keys are sorted unitTypes joined with '+', pipe, then special (empty string if none)
 const IMPERIAL_MAP: Record<string, string> = {
   // ALL_MOVE (whole army)
@@ -47,11 +53,11 @@ const IMPERIAL_MAP: Record<string, string> = {
 
 const CHAOS_MAP: Record<string, string> = {
   // ALL_MOVE (whole army)
-  'beastman+chaos_bowman+chaos_warrior+champions_of_chaos+goblin+orc+wolf_rider|ALL_MOVE': '/assets/cards/playing-card-23.png',
+  'beastman+champions_of_chaos+chaos_bowman+chaos_warrior+goblin+orc+wolf_rider|ALL_MOVE': '/assets/cards/playing-card-23.png',
   // Goblin + Champions of Chaos + Beastman
   'beastman+champions_of_chaos+goblin|': '/assets/cards/playing-card-1.png',
   // Chaos Warrior + Champions of Chaos + Chaos Bowman
-  'chaos_bowman+chaos_warrior+champions_of_chaos|': '/assets/cards/playing-card-2.png',
+  'champions_of_chaos+chaos_bowman+chaos_warrior|': '/assets/cards/playing-card-2.png',
   // Champions of Chaos CHARGE
   'champions_of_chaos|CHARGE': '/assets/cards/playing-card-3.png',
   // Goblin + Orc
@@ -71,5 +77,5 @@ const CHAOS_MAP: Record<string, string> = {
   // Chaos Warrior + Beastman + Orc + Chaos Bowman + Goblin
   'beastman+chaos_bowman+chaos_warrior+goblin+orc|': '/assets/cards/playing-card-11.png',
   // Chaos Bowman + Champions of Chaos
-  'chaos_bowman+champions_of_chaos|': '/assets/cards/playing-card-12.png',
+  'champions_of_chaos+chaos_bowman|': '/assets/cards/playing-card-12.png',
 };

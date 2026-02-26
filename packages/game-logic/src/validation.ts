@@ -3,6 +3,14 @@ import { getUnitDefinition } from './units.js';
 import { hexDistance, getReachableHexes, getNeighbors, isFortifiedEdge } from './hex.js';
 import { getTile } from './board.js';
 
+/** Get effective movement range for a unit, considering card bonuses */
+function getEffectiveMovement(state: GameState, unitType: string, baseMovement: number): number {
+  if (state.currentCard?.special === 'WOLF_RIDER_DOUBLE_MOVE' && unitType === 'wolf_rider') {
+    return state.currentCard.count;
+  }
+  return baseMovement;
+}
+
 export interface ValidationResult {
   valid: boolean;
   reason?: string;
@@ -144,7 +152,8 @@ function validateMoveUnit(state: GameState, unitId: string, to: HexCoord): Valid
   }
 
   // Check if target is reachable
-  const reachable = getReachableHexes(unit.position, def.movement, state.board, occupiedHexes);
+  const movement = getEffectiveMovement(state, unit.definitionType, def.movement);
+  const reachable = getReachableHexes(unit.position, movement, state.board, occupiedHexes);
   const reachableKeys = new Set(reachable.map(coordToKey));
   if (!reachableKeys.has(coordToKey(to))) {
     return { valid: false, reason: 'Target hex is not reachable' };
@@ -365,7 +374,8 @@ export function getValidMoveTargets(state: GameState, unitId: string): HexCoord[
   if (unit.hasMoved || unit.hasAttacked) return [];
 
   const occupiedHexes = getOccupiedHexes(state, unitId);
-  const reachable = getReachableHexes(unit.position, def.movement, state.board, occupiedHexes);
+  const movement = getEffectiveMovement(state, unit.definitionType, def.movement);
+  const reachable = getReachableHexes(unit.position, movement, state.board, occupiedHexes);
 
   // Filter out tower for mounted units
   if (def.special?.includes('no_tower')) {
