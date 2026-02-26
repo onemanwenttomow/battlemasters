@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hex Tile Cutter — Board Mat Alignment</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #eee; font-family: system-ui, sans-serif; overflow: hidden; }
+  #controls {
+    position: fixed; top: 0; left: 0; z-index: 10;
+    background: rgba(0,0,0,0.85); padding: 12px 16px; border-radius: 0 0 8px 0;
+    display: flex; flex-direction: column; gap: 6px; font-size: 13px;
+  }
+  #controls label { display: flex; align-items: center; gap: 8px; }
+  #controls input[type=range] { width: 180px; }
+  #controls input[type=number] { width: 70px; background: #333; color: #eee; border: 1px solid #555; padding: 2px 4px; }
+  #controls button {
+    margin-top: 6px; padding: 8px 16px; background: #4a7; color: #fff;
+    border: none; border-radius: 4px; cursor: pointer; font-size: 14px;
+  }
+  #controls button:hover { background: #5b8; }
+  #controls .info { color: #aaa; font-size: 11px; margin-top: 4px; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <strong>Hex Grid Alignment Tool</strong>
+  <label>Offset X: <input type="range" id="offsetX" min="-200" max="200" value="0" step="0.5">
+    <input type="number" id="offsetX_num" value="0" step="0.5"></label>
+  <label>Offset Y: <input type="range" id="offsetY" min="-200" max="200" value="0" step="0.5">
+    <input type="number" id="offsetY_num" value="0" step="0.5"></label>
+  <label>Hex Size (px): <input type="range" id="hexSize" min="20" max="100" value="50" step="0.25">
+    <input type="number" id="hexSize_num" value="50" step="0.25"></label>
+  <label>Grid Opacity: <input type="range" id="gridOpacity" min="0" max="100" value="50" step="1">
+    <span id="gridOpacity_val">50%</span></label>
+  <label><input type="checkbox" id="showCoords" checked> Show coordinates</label>
+  <button id="exportBtn">Export Hex Tiles (PNG)</button>
+  <div class="info">
+    Drag sliders to align the hex grid with the mat image.<br>
+    Grid uses even-r offset, pointy-top hexes (same as game).<br>
+    Board: 12 rows, even rows 12 cols, odd rows 13 cols.
+  </div>
+  <div class="info" id="paramOutput"></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const BOARD_WIDTH = 13;
+const BOARD_HEIGHT = 12;
+
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.src = '/assets/terrain/board-mat.jpg';
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Controls
+const offsetXInput = document.getElementById('offsetX');
+const offsetYInput = document.getElementById('offsetY');
+const hexSizeInput = document.getElementById('hexSize');
+const gridOpacityInput = document.getElementById('gridOpacity');
+const showCoordsInput = document.getElementById('showCoords');
+const offsetXNum = document.getElementById('offsetX_num');
+const offsetYNum = document.getElementById('offsetY_num');
+const hexSizeNum = document.getElementById('hexSize_num');
+const gridOpacityVal = document.getElementById('gridOpacity_val');
+const paramOutput = document.getElementById('paramOutput');
+const exportBtn = document.getElementById('exportBtn');
+
+// Sync range <-> number inputs
+function syncInputs(range, num) {
+  range.addEventListener('input', () => { num.value = range.value; draw(); });
+  num.addEventListener('input', () => { range.value = num.value; draw(); });
+}
+syncInputs(offsetXInput, offsetXNum);
+syncInputs(offsetYInput, offsetYNum);
+syncInputs(hexSizeInput, hexSizeNum);
+gridOpacityInput.addEventListener('input', () => {
+  gridOpacityVal.textContent = gridOpacityInput.value + '%';
+  draw();
+});
+showCoordsInput.addEventListener('change', draw);
+
+function getParams() {
+  return {
+    offsetX: parseFloat(offsetXInput.value),
+    offsetY: parseFloat(offsetYInput.value),
+    hexSize: parseFloat(hexSizeInput.value),
+    gridOpacity: parseInt(gridOpacityInput.value) / 100,
+    showCoords: showCoordsInput.checked,
+  };
+}
+
+/** Convert hex grid coord to pixel position (pointy-top, even-r offset) */
+function hexToPixel(col, row, hexSize, offsetX, offsetY) {
+  const sqrt3 = Math.sqrt(3);
+  const x = hexSize * sqrt3 * (col + 0.5 * (1 - (row & 1))) + offsetX;
+  const y = hexSize * 1.5 * row + offsetY;
+  return { x, y };
+}
+
+/** Draw a pointy-top hex outline */
+function drawHex(cx, cy, size, stroke, fill) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i + Math.PI / 6;
+    const x = cx + size * Math.cos(angle);
+    const y = cy + size * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+function draw() {
+  const p = getParams();
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  // Scale image to fit
+  const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+  const imgW = img.width * scale;
+  const imgH = img.height * scale;
+  const imgX = (canvas.width - imgW) / 2;
+  const imgY = (canvas.height - imgH) / 2;
+
+  ctx.drawImage(img, imgX, imgY, imgW, imgH);
+
+  // Draw hex grid overlay
+  ctx.globalAlpha = p.gridOpacity;
+  const scaledSize = p.hexSize * scale;
+  const scaledOX = p.offsetX * scale + imgX;
+  const scaledOY = p.offsetY * scale + imgY;
+
+  for (let row = 0; row < BOARD_HEIGHT; row++) {
+    const numCols = (row % 2 === 0) ? BOARD_WIDTH - 1 : BOARD_WIDTH;
+    for (let col = 0; col < numCols; col++) {
+      const { x, y } = hexToPixel(col, row, scaledSize, scaledOX, scaledOY);
+      drawHex(x, y, scaledSize, 'rgba(255,255,0,0.8)');
+
+      if (p.showCoords) {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = `${Math.max(8, scaledSize * 0.25)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${col},${row}`, x, y);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Show current parameters
+  paramOutput.textContent = `hexSize=${p.hexSize}  offX=${p.offsetX}  offY=${p.offsetY}`;
+}
+
+img.onload = () => {
+  draw();
+  window.addEventListener('resize', draw);
+};
+
+// ─── Export ───────────────────────────────────────────────────
+exportBtn.addEventListener('click', async () => {
+  const p = getParams();
+  const hexSize = p.hexSize;
+
+  // Work in original image pixel space (no viewport scaling)
+  const sqrt3 = Math.sqrt(3);
+  const tileW = Math.ceil(sqrt3 * hexSize);
+  const tileH = Math.ceil(2 * hexSize);
+
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = tileW;
+  offCanvas.height = tileH;
+  const offCtx = offCanvas.getContext('2d');
+
+  const tiles = [];
+
+  for (let row = 0; row < BOARD_HEIGHT; row++) {
+    const numCols = (row % 2 === 0) ? BOARD_WIDTH - 1 : BOARD_WIDTH;
+    for (let col = 0; col < numCols; col++) {
+      const { x: cx, y: cy } = hexToPixel(col, row, hexSize, p.offsetX, p.offsetY);
+
+      offCanvas.width = tileW; // clears canvas
+      offCanvas.height = tileH;
+
+      // Clip to hex shape
+      offCtx.save();
+      offCtx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i + Math.PI / 6;
+        const hx = tileW / 2 + hexSize * Math.cos(angle);
+        const hy = tileH / 2 + hexSize * Math.sin(angle);
+        if (i === 0) offCtx.moveTo(hx, hy);
+        else offCtx.lineTo(hx, hy);
+      }
+      offCtx.closePath();
+      offCtx.clip();
+
+      // Draw the relevant portion of the source image
+      const srcX = cx - tileW / 2;
+      const srcY = cy - tileH / 2;
+      offCtx.drawImage(img, srcX, srcY, tileW, tileH, 0, 0, tileW, tileH);
+      offCtx.restore();
+
+      tiles.push({
+        col, row,
+        dataUrl: offCanvas.toDataURL('image/png'),
+      });
+    }
+  }
+
+  // Download as a zip-like set of individual files via anchor clicks
+  // Or show a preview
+  const preview = window.open('', '_blank');
+  preview.document.write('<html><head><title>Exported Hex Tiles</title>');
+  preview.document.write('<style>body{background:#222;color:#eee;font-family:monospace;padding:20px}');
+  preview.document.write('.tile{display:inline-block;margin:4px;text-align:center}');
+  preview.document.write('.tile img{display:block;border:1px solid #555}</style></head><body>');
+  preview.document.write('<h2>Exported Hex Tiles</h2>');
+  preview.document.write('<p>Right-click → Save As on individual tiles, or use the download button below.</p>');
+  preview.document.write('<button id="dlAll" style="padding:8px 16px;margin:10px 0;font-size:14px;cursor:pointer">Download All as ZIP</button>');
+  preview.document.write('<div id="grid"></div>');
+  preview.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');
+  preview.document.write('<script>');
+  preview.document.write('const tiles = ' + JSON.stringify(tiles.map(t => ({ col: t.col, row: t.row }))) + ';');
+  preview.document.write('const grid = document.getElementById("grid");');
+  preview.document.write('const imgs = [];');
+  preview.document.write(`
+    document.querySelectorAll(".tile img").forEach((img, i) => imgs.push(img));
+    document.getElementById("dlAll").onclick = async () => {
+      const zip = new JSZip();
+      const folder = zip.folder("hex-tiles");
+      for (const img of document.querySelectorAll(".tile img")) {
+        const name = img.dataset.name;
+        const data = img.src.split(",")[1];
+        folder.file(name, data, { base64: true });
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "hex-tiles.zip";
+      a.click();
+    };
+  `);
+  preview.document.write('<\/script></body></html>');
+
+  const grid = preview.document.getElementById('grid');
+  for (const t of tiles) {
+    const div = preview.document.createElement('div');
+    div.className = 'tile';
+    const img2 = preview.document.createElement('img');
+    img2.src = t.dataUrl;
+    img2.dataset.name = `hex_${t.col}_${t.row}.png`;
+    img2.title = `${t.col},${t.row}`;
+    const label = preview.document.createElement('div');
+    label.textContent = `${t.col},${t.row}`;
+    div.appendChild(img2);
+    div.appendChild(label);
+    grid.appendChild(div);
+  }
+});
+</script>
+</body>
+</html>

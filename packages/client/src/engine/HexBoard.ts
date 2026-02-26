@@ -31,11 +31,11 @@ const TERRAIN_MODEL_MAP: Partial<Record<TerrainType, string[]>> = {
   road: ["grass"],
   river: ["water"],
   ford: ["water"],
-  tower: ["stone", "building_tower"],
+  tower: ["building_tower"],
   forest: ["grass_forest"],
   hill: ["grass_hill"],
-  marsh: ["water"],
-  ditch: ["grass"],
+  marsh: [],
+  ditch: [],
   hedge: ["grass"],
 };
 
@@ -195,6 +195,16 @@ const MARSH_SCATTER: { model: string; weight: number }[] = [
   { model: "nature_plant_flatSmall", weight: 3 },
 ];
 
+/** Terrain types that keep their 3D models (others are covered by the board mat) */
+function keepTerrainModel(terrain: TerrainType): boolean {
+  return (
+    terrain === "tower" ||
+    terrain === "marsh" ||
+    terrain === "ditch" ||
+    terrain === "hedge"
+  );
+}
+
 /** Only plain grass tiles get scatter decorations */
 function canScatter(terrain: TerrainType): boolean {
   return terrain === "plain";
@@ -235,6 +245,8 @@ export class HexBoard {
   private scatterGroup: THREE.Group;
   private modelScale = 1;
   private modelScaleComputed = false;
+  private hexTileTextures: Map<string, THREE.Texture> = new Map();
+  private textureLoader = new THREE.TextureLoader();
 
   /** Y position of the top surface of a standard grass tile (after scaling) */
   tileTopY = 0.15; // fallback = extruded hex height
@@ -282,8 +294,8 @@ export class HexBoard {
       (box.max.y * this.modelScale).toFixed(4),
     );
 
-    // Tile top Y = native model max Y * our scale factor
-    this.tileTopY = box.max.y * this.modelScale;
+    // Board mat mode: tiles sit at ground level, not on top of 3D grass models
+    this.tileTopY = 0;
   }
 
   /** Build hex tile meshes from board state */
@@ -294,7 +306,8 @@ export class HexBoard {
       this.createHexTile(tile, board);
     }
 
-    this.placeScatterDecorations(board);
+    // Scatter decorations disabled — board mat provides ground detail
+    // this.placeScatterDecorations(board);
     this.placeHedges(board);
   }
 
@@ -302,16 +315,14 @@ export class HexBoard {
     const pos = hexToWorld(tile.coord);
     const key = coordToKey(tile.coord);
     const modelKeys = TERRAIN_MODEL_MAP[tile.terrain];
-    const hasModel = this.modelScaleComputed && modelKeys && this.assetLoader;
+    const hasModel =
+      this.modelScaleComputed &&
+      modelKeys &&
+      this.assetLoader &&
+      keepTerrainModel(tile.terrain);
 
-    // Always create hex mesh for raycasting — hide it when a 3D model replaces it
+    // Create hex mesh textured with the board mat image
     const hexMesh = this.createHexMesh(tile, pos);
-    if (hasModel) {
-      // Keep mesh raycastable but visually hidden (visible=false would skip raycasting)
-      (hexMesh.material as THREE.MeshStandardMaterial).transparent = true;
-      (hexMesh.material as THREE.MeshStandardMaterial).opacity = 0;
-      (hexMesh.material as THREE.MeshStandardMaterial).depthWrite = false;
-    }
     this.group.add(hexMesh);
     this.hexMeshes.set(key, hexMesh);
 
@@ -411,10 +422,73 @@ export class HexBoard {
         }
       }
 
+      // Place marsh overlay — textured hex sitting on top of the base tile
+      if (tile.terrain === "marsh") {
+        const marshMesh = this.createMarshOverlay(pos);
+        this.group.add(marshMesh);
+        models.push(marshMesh as unknown as THREE.Group);
+      }
+
       if (models.length > 0) {
         this.terrainModels.set(key, models);
       }
     }
+  }
+
+  /**
+   * Create a marsh overlay — a flat textured hex placed on top of the base board tile.
+   * Uses the marsh artwork from /assets/terrain/hex-tiles/marsh_tile.png.
+   */
+  private createMarshOverlay(pos: { x: number; z: number }): THREE.Mesh {
+    const sqrt3 = Math.sqrt(3);
+    const shape = new THREE.Shape();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i + Math.PI / 6;
+      const x = HEX_SIZE * Math.cos(angle);
+      const y = HEX_SIZE * Math.sin(angle);
+      if (i === 0) shape.moveTo(x, y);
+      else shape.lineTo(x, y);
+    }
+    shape.closePath();
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.05,
+      bevelEnabled: false,
+    });
+
+    // UV-map to fill the hex with the full texture
+    const halfW = (sqrt3 * HEX_SIZE) / 2;
+    const halfH = HEX_SIZE;
+    const uv = geometry.attributes.uv;
+    const posAttr = geometry.attributes.position;
+    for (let i = 0; i < uv.count; i++) {
+      const lx = posAttr.getX(i);
+      const ly = posAttr.getY(i);
+      const u = (lx + halfW) / (2 * halfW);
+      const v = (ly + halfH) / (2 * halfH);
+      uv.setXY(i, u, v);
+    }
+    uv.needsUpdate = true;
+
+    const texture = this.textureLoader.load(
+      "/assets/terrain/hex-tiles/marsh_tile.png",
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      transparent: true,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    // Sit slightly above the base tile to avoid z-fighting
+    mesh.position.set(pos.x, this.tileTopY + 0.02, pos.z);
+    mesh.receiveShadow = true;
+
+    return mesh;
   }
 
   /**
@@ -777,37 +851,61 @@ export class HexBoard {
     }
   }
 
+  /** Load (or return cached) hex tile texture for a given coordinate */
+  private getHexTileTexture(col: number, row: number): THREE.Texture {
+    const key = `${col}_${row}`;
+    let tex = this.hexTileTextures.get(key);
+    if (!tex) {
+      tex = this.textureLoader.load(
+        `/assets/terrain/hex-tiles/hex_${col}_${row}.png`,
+      );
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.hexTileTextures.set(key, tex);
+    }
+    return tex;
+  }
+
   private createHexMesh(
     tile: HexTile,
     pos: { x: number; z: number },
   ): THREE.Mesh {
-    const baseColor = TERRAIN_COLORS[tile.terrain];
-
-    // Hex shape (pointy-top: offset by 30°)
+    const sqrt3 = Math.sqrt(3);
+    // Hex shape (pointy-top: offset by 30°) — full size, no 0.95 shrink
     const shape = new THREE.Shape();
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI / 3) * i + Math.PI / 6;
-      const x = HEX_SIZE * 0.95 * Math.cos(angle);
-      const y = HEX_SIZE * 0.95 * Math.sin(angle);
+      const x = HEX_SIZE * Math.cos(angle);
+      const y = HEX_SIZE * Math.sin(angle);
       if (i === 0) shape.moveTo(x, y);
       else shape.lineTo(x, y);
     }
     shape.closePath();
 
     const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.15,
+      depth: 0.01,
       bevelEnabled: false,
     });
 
-    // Slight random color variation
-    const variation = (Math.random() - 0.5) * 0.03;
-    const color = new THREE.Color(baseColor);
-    color.r = Math.max(0, Math.min(1, color.r + variation));
-    color.g = Math.max(0, Math.min(1, color.g + variation));
-    color.b = Math.max(0, Math.min(1, color.b + variation));
+    // UV-map: tile image is a bounding rect around the hex.
+    // Image dimensions: width = sqrt3 * HEX_SIZE, height = 2 * HEX_SIZE
+    // Local vertex (0,0) = hex center → UV (0.5, 0.5)
+    const halfW = (sqrt3 * HEX_SIZE) / 2;
+    const halfH = HEX_SIZE;
+    const uv = geometry.attributes.uv;
+    const posAttr = geometry.attributes.position;
+    for (let i = 0; i < uv.count; i++) {
+      const lx = posAttr.getX(i);
+      const ly = posAttr.getY(i);
+      const u = (lx + halfW) / (2 * halfW);
+      const v = (ly + halfH) / (2 * halfH);
+      uv.setXY(i, u, v);
+    }
+    uv.needsUpdate = true;
 
+    const texture = this.getHexTileTexture(tile.coord.col, tile.coord.row);
     const material = new THREE.MeshStandardMaterial({
-      color,
+      map: texture,
+      transparent: true,
       roughness: 0.85,
       metalness: 0.05,
     });
@@ -911,13 +1009,17 @@ export class HexBoard {
     }
     this.terrainModels.clear();
 
-    // Dispose hex meshes
+    // Dispose hex meshes and their tile textures
     for (const mesh of this.hexMeshes.values()) {
       this.group.remove(mesh);
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();
     }
     this.hexMeshes.clear();
+    for (const tex of this.hexTileTextures.values()) {
+      tex.dispose();
+    }
+    this.hexTileTextures.clear();
 
     // Remove any remaining children
     while (this.group.children.length > 0) {
