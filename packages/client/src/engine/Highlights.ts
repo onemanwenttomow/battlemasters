@@ -30,7 +30,7 @@ export class Highlights {
 
   /** Set Y position so highlights sit just above tile surfaces */
   setHeight(tileTopY: number) {
-    this.group.position.y = tileTopY + 0.02;
+    this.group.position.y = tileTopY + 0.05;
   }
 
   /** Show movement highlights on given hexes */
@@ -73,7 +73,7 @@ export class Highlights {
     shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
-    const baseOpacity = type === 'cannonPathPreview' ? 0.5 : 0.5;
+    const baseOpacity = type === 'cannonPathPreview' ? 0.6 : 0.7;
     const material = new THREE.MeshBasicMaterial({
       color: HIGHLIGHT_COLORS[type],
       transparent: true,
@@ -98,11 +98,11 @@ export class Highlights {
       const mat = mesh.material as THREE.MeshBasicMaterial;
       const type = mesh.userData.highlightType as HighlightType;
       if (type === 'cannonPathPreview') {
-        mat.opacity = 0.4 + Math.sin(this.time * 4) * 0.15;
+        mat.opacity = 0.5 + Math.sin(this.time * 4) * 0.2;
       } else if (type === 'cannonPath') {
-        mat.opacity = 0.1 + Math.sin(this.time * 3) * 0.05;
+        mat.opacity = 0.15 + Math.sin(this.time * 3) * 0.1;
       } else {
-        mat.opacity = 0.4 + Math.sin(this.time * 3) * 0.15;
+        mat.opacity = 0.5 + Math.sin(this.time * 4) * 0.3;
       }
     }
   }
