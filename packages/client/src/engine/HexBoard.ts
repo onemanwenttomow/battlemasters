@@ -882,7 +882,7 @@ export class HexBoard {
     shape.closePath();
 
     const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.01,
+      depth: 0.03,
       bevelEnabled: false,
     });
 
