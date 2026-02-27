@@ -413,8 +413,12 @@ export class HexBoard {
         }
       }
 
-      // Place ditch fortification stakes on fortified edges
+      // Place ditch overlay + fortification stakes
       if (tile.terrain === "ditch") {
+        const ditchOverlay = this.createDitchOverlay(pos);
+        this.group.add(ditchOverlay);
+        models.push(ditchOverlay as unknown as THREE.Group);
+
         const ditchModels = this.createDitchFortifications(tile, pos);
         for (const m of ditchModels) {
           this.group.add(m);
@@ -492,6 +496,61 @@ export class HexBoard {
   }
 
   /**
+   * Create a ditch overlay — a flat textured hex placed on top of the base board tile.
+   * Uses the ditch artwork from /assets/terrain/hex-tiles/ditch_1.png.
+   */
+  private createDitchOverlay(pos: { x: number; z: number }): THREE.Mesh {
+    const sqrt3 = Math.sqrt(3);
+    const shape = new THREE.Shape();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i + Math.PI / 6;
+      const x = HEX_SIZE * Math.cos(angle);
+      const y = HEX_SIZE * Math.sin(angle);
+      if (i === 0) shape.moveTo(x, y);
+      else shape.lineTo(x, y);
+    }
+    shape.closePath();
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.05,
+      bevelEnabled: false,
+    });
+
+    const halfW = (sqrt3 * HEX_SIZE) / 2;
+    const halfH = HEX_SIZE;
+    const uv = geometry.attributes.uv;
+    const posAttr = geometry.attributes.position;
+    for (let i = 0; i < uv.count; i++) {
+      const lx = posAttr.getX(i);
+      const ly = posAttr.getY(i);
+      const u = (lx + halfW) / (2 * halfW);
+      const v = (ly + halfH) / (2 * halfH);
+      uv.setXY(i, u, v);
+    }
+    uv.needsUpdate = true;
+
+    const texture = this.textureLoader.load(
+      "/assets/terrain/hex-tiles/ditch_1.png",
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      transparent: true,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = Math.PI;
+    mesh.position.set(pos.x, this.tileTopY + 0.02, pos.z);
+    mesh.receiveShadow = true;
+
+    return mesh;
+  }
+
+  /**
    * Create procedural sharpened stake fortifications on the 4 fortified edges of a ditch tile.
    * Orientation determines which two adjacent sides are open (no stakes).
    * Stakes lean outward at 45° with sharpened cone tips, connected by two horizontal rails.
@@ -543,9 +602,9 @@ export class HexBoard {
         const px = cx + Math.cos(alongAngle) * t;
         const pz = cz - Math.sin(alongAngle) * t;
 
-        // Stake pivot group at the base
+        // Stake pivot group at the base (raised above ditch overlay)
         const stakeGroup = new THREE.Group();
-        stakeGroup.position.set(px, this.tileTopY, pz);
+        stakeGroup.position.set(px, this.tileTopY + 0.07, pz);
 
         // Tilt outward using axis-angle rotation around the edge-along axis
         const alongEdge = new THREE.Vector3(
@@ -577,7 +636,7 @@ export class HexBoard {
 
       for (const railY of [0.03, 0.1]) {
         const rail = new THREE.Mesh(railGeo, woodMat);
-        rail.position.set(cx, this.tileTopY + railY, cz);
+        rail.position.set(cx, this.tileTopY + 0.07 + railY, cz);
         rail.rotation.y = fenceRotY;
         rail.castShadow = true;
         rail.receiveShadow = true;
