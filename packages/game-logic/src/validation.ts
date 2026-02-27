@@ -1,4 +1,4 @@
-import { GameState, GameAction, Unit, HexCoord, coordToKey } from './types.js';
+import { GameState, GameAction, Unit, HexCoord, coordToKey, edgeKey, PlaceableTerrainType } from './types.js';
 import { getUnitDefinition } from './units.js';
 import { hexDistance, getReachableHexes, getNeighbors, isFortifiedEdge } from './hex.js';
 import { getTile } from './board.js';
@@ -21,8 +21,24 @@ export function validateAction(state: GameState, action: GameAction): Validation
   switch (action.type) {
     case 'START_GAME':
       return validateStartGame(state);
+    case 'START_STANDARD_GAME':
+      return validateStartStandardGame(state);
+    case 'PLACE_TERRAIN':
+      return validatePlaceTerrain(state, action.terrainType, action.position);
+    case 'PLACE_HEDGE':
+      return validatePlaceHedge(state, action.from, action.to);
+    case 'REMOVE_TERRAIN':
+      return validateRemoveTerrain(state, action.position);
+    case 'REMOVE_HEDGE':
+      return validateRemoveHedge(state, action.from, action.to);
+    case 'FINISH_TERRAIN_PLACEMENT':
+      return validateFinishTerrainPlacement(state);
+    case 'SELECT_SIDE':
+      return validateSelectSide(state);
     case 'PLACE_UNIT':
       return validatePlaceUnit(state, action.unitType, action.position);
+    case 'AUTO_DEPLOY':
+      return validateAutoDeploy(state);
     case 'DRAW_CARD':
       return validateDrawCard(state);
     case 'SELECT_UNIT':
@@ -59,6 +75,107 @@ function validateStartGame(state: GameState): ValidationResult {
   return { valid: true };
 }
 
+function validateStartStandardGame(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'setup') {
+    return { valid: false, reason: 'Game already started' };
+  }
+  return { valid: true };
+}
+
+function validatePlaceTerrain(state: GameState, terrainType: PlaceableTerrainType, position: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'terrain_placement') {
+    return { valid: false, reason: 'Not in terrain placement phase' };
+  }
+  if (!state.availableTerrain || state.availableTerrain[terrainType] <= 0) {
+    return { valid: false, reason: `No ${terrainType} pieces remaining` };
+  }
+  const tile = getTile(state.board, position);
+  if (!tile) {
+    return { valid: false, reason: 'Position does not exist' };
+  }
+  if (tile.terrain !== 'plain') {
+    return { valid: false, reason: 'Can only place terrain on plain tiles' };
+  }
+  return { valid: true };
+}
+
+function validatePlaceHedge(state: GameState, from: HexCoord, to: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'terrain_placement') {
+    return { valid: false, reason: 'Not in terrain placement phase' };
+  }
+  if (!state.availableTerrain || state.availableTerrain.hedge <= 0) {
+    return { valid: false, reason: 'No hedge pieces remaining' };
+  }
+  const fromTile = getTile(state.board, from);
+  const toTile = getTile(state.board, to);
+  if (!fromTile || !toTile) {
+    return { valid: false, reason: 'Hex does not exist' };
+  }
+  if (hexDistance(from, to) !== 1) {
+    return { valid: false, reason: 'Hexes must be adjacent' };
+  }
+  if (fromTile.terrain === 'river' || toTile.terrain === 'river') {
+    return { valid: false, reason: 'Cannot place hedge on river edge' };
+  }
+  const key = edgeKey(from, to);
+  if (state.board.hedges.has(key)) {
+    return { valid: false, reason: 'Edge already has a hedge' };
+  }
+  return { valid: true };
+}
+
+function validateRemoveTerrain(state: GameState, position: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'terrain_placement') {
+    return { valid: false, reason: 'Not in terrain placement phase' };
+  }
+  const tile = getTile(state.board, position);
+  if (!tile) {
+    return { valid: false, reason: 'Position does not exist' };
+  }
+  if (tile.terrain !== 'tower' && tile.terrain !== 'marsh' && tile.terrain !== 'ditch') {
+    return { valid: false, reason: 'No placed terrain at this position' };
+  }
+  return { valid: true };
+}
+
+function validateRemoveHedge(state: GameState, from: HexCoord, to: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'terrain_placement') {
+    return { valid: false, reason: 'Not in terrain placement phase' };
+  }
+  const key = edgeKey(from, to);
+  if (!state.board.hedges.has(key)) {
+    return { valid: false, reason: 'No hedge on this edge' };
+  }
+  return { valid: true };
+}
+
+function validateFinishTerrainPlacement(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'terrain_placement') {
+    return { valid: false, reason: 'Not in terrain placement phase' };
+  }
+  return { valid: true };
+}
+
+function validateSelectSide(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'side_selection') {
+    return { valid: false, reason: 'Not in side selection phase' };
+  }
+  return { valid: true };
+}
+
+function validateAutoDeploy(state: GameState): ValidationResult {
+  if (state.currentPhase !== 'deployment') {
+    return { valid: false, reason: 'Not in deployment phase' };
+  }
+  if (!state.unplacedUnits || state.unplacedUnits.length === 0) {
+    return { valid: false, reason: 'No units to deploy' };
+  }
+  if (!state.standardGame || !state.deploymentSides) {
+    return { valid: false, reason: 'Auto deploy only available in standard game' };
+  }
+  return { valid: true };
+}
+
 function validatePlaceUnit(state: GameState, unitType: import('./types.js').UnitType, position: HexCoord): ValidationResult {
   if (state.currentPhase !== 'deployment') {
     return { valid: false, reason: 'Not in deployment phase' };
@@ -66,6 +183,14 @@ function validatePlaceUnit(state: GameState, unitType: import('./types.js').Unit
 
   if (!state.unplacedUnits || !state.unplacedUnits.some(u => u.type === unitType)) {
     return { valid: false, reason: 'Unit type not available for placement' };
+  }
+
+  // Standard game: check deployment turn matches unit faction
+  if (state.standardGame && state.deploymentTurn) {
+    const unitFaction = getUnitDefinition(unitType).faction;
+    if (unitFaction !== state.deploymentTurn) {
+      return { valid: false, reason: `It is ${state.deploymentTurn}'s turn to deploy` };
+    }
   }
 
   if (!state.deploymentZone || !state.deploymentZone.rows.includes(position.row)) {

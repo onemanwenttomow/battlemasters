@@ -9,7 +9,7 @@ import { Effects } from '../engine/Effects';
 import { AssetLoader } from '../engine/AssetLoader';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
-import { getValidMoveTargets, getValidAttackTargets, hexDistance, getShortestPaths, coordToKey } from '@battle-masters/game-logic';
+import { getValidMoveTargets, getValidAttackTargets, hexDistance, getShortestPaths, coordToKey, edgeKey, getNeighbors, hexToWorld } from '@battle-masters/game-logic';
 
 export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | null>) {
   const engineRef = useRef<{
@@ -22,6 +22,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
     effects: Effects;
     assetLoader: AssetLoader;
     animFrame: number;
+    onKeyDown: (e: KeyboardEvent) => void;
   } | null>(null);
 
   const dispatch = useGameStore((s) => s.dispatch);
@@ -145,6 +146,37 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           case 'hex_click': {
             useUIStore.getState().setInspectedUnit(null);
 
+            // Terrain placement phase
+            if (state.currentPhase === 'terrain_placement' && event.hexCoord) {
+              const uiState = useUIStore.getState();
+              const piece = uiState.selectedTerrainPiece;
+              if (piece && piece !== 'hedge') {
+                dispatch({
+                  type: 'PLACE_TERRAIN',
+                  terrainType: piece,
+                  position: event.hexCoord,
+                  orientation: piece === 'ditch' ? uiState.ditchPreviewOrientation : undefined,
+                });
+                if (piece === 'ditch') {
+                  useUIStore.getState().setLastPlacedDitchCoord(event.hexCoord);
+                } else {
+                  useUIStore.getState().setLastPlacedDitchCoord(null);
+                }
+              } else if (piece === 'hedge' && event.worldPoint) {
+                // Determine closest edge
+                const hexCenter = hexToWorld(event.hexCoord);
+                const dx = event.worldPoint.x - hexCenter.x;
+                const dz = event.worldPoint.z - hexCenter.z;
+                const angle = Math.atan2(-dz, dx);
+                // Map to direction 0-5 (0=E, each 60° counterclockwise)
+                const dir = ((Math.round(angle / (Math.PI / 3)) % 6) + 6) % 6;
+                const neighbors = getNeighbors(event.hexCoord);
+                const neighbor = neighbors[dir];
+                dispatch({ type: 'PLACE_HEDGE', from: event.hexCoord, to: neighbor });
+              }
+              break;
+            }
+
             // Deployment phase: place unit on hex click
             if (state.currentPhase === 'deployment' && event.hexCoord) {
               const selectedType = useUIStore.getState().selectedDeploymentUnitType;
@@ -204,6 +236,35 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             break;
           }
 
+          case 'hex_right_click': {
+            // Right-click to remove terrain/hedge during terrain placement
+            if (state.currentPhase === 'terrain_placement' && event.hexCoord) {
+              const tile = state.board.tiles.get(coordToKey(event.hexCoord));
+              if (tile && (tile.terrain === 'tower' || tile.terrain === 'marsh' || tile.terrain === 'ditch')) {
+                dispatch({ type: 'REMOVE_TERRAIN', position: event.hexCoord });
+                // Clear last ditch tracking if we removed it
+                const lastDitch = useUIStore.getState().lastPlacedDitchCoord;
+                if (lastDitch && lastDitch.col === event.hexCoord.col && lastDitch.row === event.hexCoord.row) {
+                  useUIStore.getState().setLastPlacedDitchCoord(null);
+                }
+              } else if (event.worldPoint) {
+                // Try to remove a nearby hedge
+                const hexCenter = hexToWorld(event.hexCoord);
+                const dx = event.worldPoint.x - hexCenter.x;
+                const dz = event.worldPoint.z - hexCenter.z;
+                const angle = Math.atan2(-dz, dx);
+                const dir = ((Math.round(angle / (Math.PI / 3)) % 6) + 6) % 6;
+                const neighbors = getNeighbors(event.hexCoord);
+                const neighbor = neighbors[dir];
+                const key = edgeKey(event.hexCoord, neighbor);
+                if (state.board.hedges.has(key)) {
+                  dispatch({ type: 'REMOVE_HEDGE', from: event.hexCoord, to: neighbor });
+                }
+              }
+            }
+            break;
+          }
+
           case 'empty_click': {
             useUIStore.getState().setInspectedUnit(null);
             break;
@@ -211,8 +272,32 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         }
       });
 
+      // Keyboard handler for ditch rotation
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'r' || e.key === 'R') {
+          const state = useGameStore.getState().state;
+          if (state?.currentPhase === 'terrain_placement') {
+            const uiState = useUIStore.getState();
+            const newOrientation = (uiState.ditchPreviewOrientation + 1) % 6;
+            uiState.setDitchPreviewOrientation(newOrientation);
+
+            // Also rotate the last placed ditch if it still exists
+            const lastDitch = uiState.lastPlacedDitchCoord;
+            if (lastDitch) {
+              const tile = state.board.tiles.get(coordToKey(lastDitch));
+              if (tile?.terrain === 'ditch') {
+                dispatch({ type: 'REMOVE_TERRAIN', position: lastDitch });
+                dispatch({ type: 'PLACE_TERRAIN', terrainType: 'ditch', position: lastDitch, orientation: newOrientation });
+              }
+            }
+          }
+        }
+      };
+      window.addEventListener('keydown', onKeyDown);
+
       // Animation loop
       let lastTime = performance.now();
+      let lastBoardRef: import('@battle-masters/game-logic').BoardState | null = null;
       const animate = () => {
         const now = performance.now();
         const dt = (now - lastTime) / 1000;
@@ -222,6 +307,17 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         const uiState = useUIStore.getState();
         hexBoard.setShowCoords(uiState.showCoords);
         if (state) {
+          // Update board when board reference changes
+          if (state.board !== lastBoardRef) {
+            if (lastBoardRef === null) {
+              // First time — full build
+              hexBoard.buildFromState(state.board);
+            } else {
+              // Incremental update — only changed tiles/hedges
+              hexBoard.updateFromState(state.board);
+            }
+            lastBoardRef = state.board;
+          }
           // Preserve destroyed unit meshes while dice roll is showing
           let preserveIds: Set<string> | undefined;
           if (uiState.showDiceRoll && uiState.combatEffectInfo?.destroyedUnitId) {
@@ -230,8 +326,9 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           const deferDamageForId = uiState.showDiceRoll
             ? uiState.combatEffectInfo?.damagedUnitId ?? null
             : null;
-          // Invert facing when sides are swapped (chaos in north, imperial in south)
-          const invertFacing = state.scenarioId === 'battle_of_the_river_tengin';
+          // Invert facing when sides are swapped (chaos in north / imperial in south)
+          const invertFacing = state.scenarioId === 'battle_of_the_river_tengin'
+            || (state.standardGame === true && state.deploymentSides?.chaos?.includes(0));
           unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, invertFacing);
           unitRenderer.updateBillboards(scene.camera);
 
@@ -349,6 +446,28 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             highlights.showDeploymentZoneHighlights(deployHexes);
           }
 
+          // Terrain placement highlights — show valid plain hexes
+          if (state.currentPhase === 'terrain_placement') {
+            const validHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+            for (const [, tile] of state.board.tiles) {
+              if (tile.terrain === 'plain') {
+                validHexes.push(tile.coord);
+              }
+            }
+            highlights.showValidPlacementHighlights(validHexes);
+          }
+
+          // Side selection highlights — show top and bottom rows
+          if (state.currentPhase === 'side_selection') {
+            const topHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+            const bottomHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+            for (const [, tile] of state.board.tiles) {
+              if (tile.coord.row <= 1) topHexes.push(tile.coord);
+              if (tile.coord.row >= 10) bottomHexes.push(tile.coord);
+            }
+            highlights.showSideSelectionHighlights(topHexes, bottomHexes);
+          }
+
           // Ogre rampage highlights
           if (state.currentPhase === 'ogre_rampage' && state.selectedUnitId) {
             const ogre = state.units.get(state.selectedUnitId);
@@ -388,6 +507,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         effects,
         assetLoader,
         animFrame: requestAnimationFrame(animate),
+        onKeyDown,
       };
     };
 
@@ -405,6 +525,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         engineRef.current.camera.dispose();
         engineRef.current.scene.dispose();
         engineRef.current.assetLoader.dispose();
+        window.removeEventListener('keydown', engineRef.current.onKeyDown);
         engineRef.current = null;
       }
     };

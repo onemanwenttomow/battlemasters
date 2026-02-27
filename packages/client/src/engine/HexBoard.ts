@@ -242,11 +242,16 @@ export class HexBoard {
   private coordLabelsGroup: THREE.Group;
   private hexMeshes: Map<string, THREE.Mesh> = new Map();
   private terrainModels: Map<string, THREE.Group[]> = new Map();
+  private hedgeModels: Map<string, THREE.Group> = new Map();
   private scatterGroup: THREE.Group;
   private modelScale = 1;
   private modelScaleComputed = false;
   private hexTileTextures: Map<string, THREE.Texture> = new Map();
   private textureLoader = new THREE.TextureLoader();
+  /** Snapshot of tile terrain+orientation for diffing */
+  private lastTileState: Map<string, string> = new Map();
+  /** Snapshot of hedge keys for diffing */
+  private lastHedgeKeys: Set<string> = new Set();
 
   /** Y position of the top surface of a standard grass tile (after scaling) */
   tileTopY = 0.15; // fallback = extruded hex height
@@ -309,6 +314,150 @@ export class HexBoard {
     // Scatter decorations disabled — board mat provides ground detail
     // this.placeScatterDecorations(board);
     this.placeHedges(board);
+    this.snapshotState(board);
+  }
+
+  /** Incrementally update only the tiles/hedges that changed */
+  updateFromState(board: BoardState) {
+    // Find tiles that changed terrain or orientation
+    for (const [key, tile] of board.tiles) {
+      const snap = `${tile.terrain}:${tile.orientation ?? ''}`;
+      if (this.lastTileState.get(key) !== snap) {
+        // Remove old terrain models for this tile
+        this.clearTileModels(key);
+        // Recreate just this tile's 3D models (the hex mesh stays)
+        this.createTileModels(tile, board);
+        this.lastTileState.set(key, snap);
+      }
+    }
+
+    // Find hedges that were added or removed
+    const currentHedges = board.hedges;
+    // Remove hedges no longer present
+    for (const key of this.lastHedgeKeys) {
+      if (!currentHedges.has(key)) {
+        const model = this.hedgeModels.get(key);
+        if (model) {
+          this.group.remove(model);
+          this.disposeGroup(model);
+          this.hedgeModels.delete(key);
+        }
+      }
+    }
+    // Add new hedges
+    for (const key of currentHedges) {
+      if (!this.lastHedgeKeys.has(key)) {
+        const [aStr, bStr] = key.split("|");
+        const a = keyToCoord(aStr);
+        const b = keyToCoord(bStr);
+        const hedgeGroup = this.createHedgeOnEdge(a, b);
+        this.group.add(hedgeGroup);
+        this.hedgeModels.set(key, hedgeGroup);
+      }
+    }
+
+    this.lastHedgeKeys = new Set(currentHedges);
+  }
+
+  private snapshotState(board: BoardState) {
+    this.lastTileState.clear();
+    for (const [key, tile] of board.tiles) {
+      this.lastTileState.set(key, `${tile.terrain}:${tile.orientation ?? ''}`);
+    }
+    this.lastHedgeKeys = new Set(board.hedges);
+  }
+
+  /** Remove only the 3D terrain models for a tile (keep the hex mesh) */
+  private clearTileModels(key: string) {
+    const models = this.terrainModels.get(key);
+    if (models) {
+      for (const model of models) {
+        this.group.remove(model);
+        this.disposeGroup(model);
+      }
+      this.terrainModels.delete(key);
+    }
+  }
+
+  /** Create only the 3D terrain models for a tile (tower, marsh overlay, ditch, etc.) */
+  private createTileModels(tile: HexTile, board: BoardState) {
+    const pos = hexToWorld(tile.coord);
+    const key = coordToKey(tile.coord);
+    const modelKeys = TERRAIN_MODEL_MAP[tile.terrain];
+    const hasModel =
+      this.modelScaleComputed &&
+      modelKeys &&
+      this.assetLoader &&
+      keepTerrainModel(tile.terrain);
+
+    if (!hasModel || !modelKeys) return;
+
+    const models: THREE.Group[] = [];
+    let baseTopY = 0;
+
+    for (const modelKey of modelKeys) {
+      const clone = this.assetLoader!.getModel(modelKey);
+      if (!clone) continue;
+
+      if (modelKey === "building_tower") {
+        const box = new THREE.Box3().setFromObject(clone);
+        const size = box.getSize(new THREE.Vector3());
+        const maxHoriz = Math.max(size.x, size.z);
+        const targetWidth = Math.sqrt(3) * HEX_SIZE * 0.9;
+        const scale = maxHoriz > 0 ? targetWidth / maxHoriz : 1;
+        clone.scale.setScalar(scale);
+        clone.position.set(pos.x, baseTopY, pos.z);
+        clone.updateMatrixWorld(true);
+        const finalBox = new THREE.Box3().setFromObject(clone);
+        const finalCenter = finalBox.getCenter(new THREE.Vector3());
+        clone.position.x += pos.x - finalCenter.x;
+        clone.position.z += pos.z - finalCenter.z;
+        clone.position.y += baseTopY - finalBox.min.y;
+      } else {
+        clone.scale.setScalar(this.modelScale);
+        clone.position.set(pos.x, baseTopY, pos.z);
+        clone.updateMatrixWorld(true);
+        const tileBox = new THREE.Box3().setFromObject(clone);
+        baseTopY = tileBox.max.y;
+      }
+
+      const tint = TERRAIN_TINT[tile.terrain];
+      clone.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (tint !== undefined && modelKey !== "building_tower") {
+            child.material = (child.material as THREE.Material).clone();
+            (child.material as THREE.MeshStandardMaterial).color.set(tint);
+          }
+        }
+      });
+
+      this.group.add(clone);
+      models.push(clone);
+    }
+
+    if (tile.terrain === "ditch") {
+      const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0);
+      this.group.add(ditchOverlay);
+      models.push(ditchOverlay as unknown as THREE.Group);
+
+      const ditchModels = this.createDitchFortifications(tile, pos);
+      for (const m of ditchModels) {
+        this.group.add(m);
+        models.push(m);
+      }
+    }
+
+    if (tile.terrain === "marsh") {
+      const marshMesh = this.createMarshOverlay(pos);
+      this.group.add(marshMesh);
+      models.push(marshMesh as unknown as THREE.Group);
+    }
+
+    if (models.length > 0) {
+      this.terrainModels.set(key, models);
+    }
   }
 
   private createHexTile(tile: HexTile, board: BoardState) {
@@ -415,7 +564,7 @@ export class HexBoard {
 
       // Place ditch overlay + fortification stakes
       if (tile.terrain === "ditch") {
-        const ditchOverlay = this.createDitchOverlay(pos);
+        const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0);
         this.group.add(ditchOverlay);
         models.push(ditchOverlay as unknown as THREE.Group);
 
@@ -498,8 +647,9 @@ export class HexBoard {
   /**
    * Create a ditch overlay — a flat textured hex placed on top of the base board tile.
    * Uses the ditch artwork from /assets/terrain/hex-tiles/ditch_1.png.
+   * Rotates to match the tile orientation (0-5, each step is 60°).
    */
-  private createDitchOverlay(pos: { x: number; z: number }): THREE.Mesh {
+  private createDitchOverlay(pos: { x: number; z: number }, orientation: number): THREE.Mesh {
     const sqrt3 = Math.sqrt(3);
     const shape = new THREE.Shape();
     for (let i = 0; i < 6; i++) {
@@ -543,7 +693,9 @@ export class HexBoard {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.rotation.z = Math.PI;
+    // Base rotation Math.PI corresponds to orientation 1 (the default ditch).
+    // Each orientation step is 60° (Math.PI / 3).
+    mesh.rotation.z = Math.PI + (orientation - 1) * (Math.PI / 3);
     mesh.position.set(pos.x, this.tileTopY + 0.02, pos.z);
     mesh.receiveShadow = true;
 
@@ -657,6 +809,7 @@ export class HexBoard {
       const b = keyToCoord(bStr);
       const hedgeGroup = this.createHedgeOnEdge(a, b);
       this.group.add(hedgeGroup);
+      this.hedgeModels.set(key, hedgeGroup);
     }
   }
 
@@ -1067,6 +1220,13 @@ export class HexBoard {
       }
     }
     this.terrainModels.clear();
+
+    // Dispose hedge models
+    for (const model of this.hedgeModels.values()) {
+      this.group.remove(model);
+      this.disposeGroup(model);
+    }
+    this.hedgeModels.clear();
 
     // Dispose hex meshes and their tile textures
     for (const mesh of this.hexMeshes.values()) {

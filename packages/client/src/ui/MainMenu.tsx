@@ -5,9 +5,13 @@ export function MainMenu() {
   const initGame = useGameStore((s) => s.initGame);
   const setScreen = useUIStore((s) => s.setScreen);
 
-  const handleStartGame = () => {
+  const handleQuickGame = () => {
     initGame();
     setScreen('game');
+  };
+
+  const handleStandardGame = () => {
+    setScreen('standard_game_setup');
   };
 
   return (
@@ -34,7 +38,7 @@ export function MainMenu() {
       </p>
 
       <button
-        onClick={handleStartGame}
+        onClick={handleStandardGame}
         style={{
           background: 'linear-gradient(135deg, #c4a35a 0%, #8a7030 100%)',
           border: 'none',
@@ -56,7 +60,7 @@ export function MainMenu() {
 
       <div style={{ marginTop: 24, display: 'flex', gap: 16 }}>
         <SmallBtn label="Campaign" onClick={() => setScreen('scenario_select')} />
-        <SmallBtn label="Quick Game" onClick={handleStartGame} />
+        <SmallBtn label="Quick Game" onClick={handleQuickGame} />
         <SmallBtn label="Settings" onClick={() => {}} disabled />
       </div>
 

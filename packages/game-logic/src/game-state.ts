@@ -1,5 +1,5 @@
-import { GameState, GameAction, Faction, coordToKey, edgeKey, HexCoord, CannonFireState, CannonTileResult, TowerState } from './types.js';
-import { createDefaultBoard } from './board.js';
+import { GameState, GameAction, Faction, coordToKey, edgeKey, HexCoord, CannonFireState, CannonTileResult, TowerState, PlaceableTerrainType, UnitType } from './types.js';
+import { createDefaultBoard, createBareBoard } from './board.js';
 import { createUnit, getDefaultImperialArmy, getDefaultChaosArmy, resetUnitIdCounter, getUnitDefinition } from './units.js';
 import { createBattleDeck, shuffleDeck, createRNG, createOgreSubDeck, createCannonTileDeck } from './cards.js';
 import { resolveCombat, resolveCombatWithRolls } from './combat.js';
@@ -81,8 +81,24 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'START_GAME':
       return handleStartGame(state, action.scenarioId);
+    case 'START_STANDARD_GAME':
+      return handleStartStandardGame(state, action.terrainPlacer);
+    case 'PLACE_TERRAIN':
+      return handlePlaceTerrain(state, action.terrainType, action.position, action.orientation);
+    case 'PLACE_HEDGE':
+      return handlePlaceHedge(state, action.from, action.to);
+    case 'REMOVE_TERRAIN':
+      return handleRemoveTerrain(state, action.position);
+    case 'REMOVE_HEDGE':
+      return handleRemoveHedge(state, action.from, action.to);
+    case 'FINISH_TERRAIN_PLACEMENT':
+      return handleFinishTerrainPlacement(state);
+    case 'SELECT_SIDE':
+      return handleSelectSide(state, action.side);
     case 'PLACE_UNIT':
       return handlePlaceUnit(state, action.unitType, action.position);
+    case 'AUTO_DEPLOY':
+      return handleAutoDeploy(state);
     case 'DRAW_CARD':
       return handleDrawCard(state);
     case 'SELECT_UNIT':
@@ -176,6 +192,257 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
   return newState;
 }
 
+// ─── Standard Game Handlers ───────────────────────────────────
+
+function handleStartStandardGame(state: GameState, terrainPlacer: Faction): GameState {
+  const newState = cloneState(state);
+  resetUnitIdCounter();
+
+  newState.board = createBareBoard();
+  newState.standardGame = true;
+  newState.terrainPlacerFaction = terrainPlacer;
+  newState.availableTerrain = { tower: 1, marsh: 2, ditch: 2, hedge: 4 };
+  newState.currentPhase = 'terrain_placement';
+  newState.activeFaction = terrainPlacer;
+
+  return newState;
+}
+
+function handlePlaceTerrain(state: GameState, terrainType: PlaceableTerrainType, position: HexCoord, orientation?: number): GameState {
+  const newState = cloneState(state);
+
+  const newTiles = new Map(newState.board.tiles);
+  const key = coordToKey(position);
+  const existing = newTiles.get(key);
+  if (existing) {
+    const updated = { ...existing, terrain: terrainType as import('./types.js').TerrainType };
+    if (terrainType === 'ditch') {
+      updated.orientation = orientation ?? 0;
+    }
+    newTiles.set(key, updated);
+  }
+  newState.board = { ...newState.board, tiles: newTiles };
+
+  newState.availableTerrain = { ...newState.availableTerrain! };
+  newState.availableTerrain[terrainType]--;
+
+  return newState;
+}
+
+function handlePlaceHedge(state: GameState, from: HexCoord, to: HexCoord): GameState {
+  const newState = cloneState(state);
+
+  const newHedges = new Set(newState.board.hedges);
+  newHedges.add(edgeKey(from, to));
+  newState.board = { ...newState.board, hedges: newHedges };
+
+  newState.availableTerrain = { ...newState.availableTerrain! };
+  newState.availableTerrain.hedge--;
+
+  return newState;
+}
+
+function handleRemoveTerrain(state: GameState, position: HexCoord): GameState {
+  const newState = cloneState(state);
+
+  const newTiles = new Map(newState.board.tiles);
+  const key = coordToKey(position);
+  const existing = newTiles.get(key);
+  if (existing) {
+    const removedType = existing.terrain as PlaceableTerrainType;
+    newTiles.set(key, { ...existing, terrain: 'plain', orientation: undefined });
+    newState.board = { ...newState.board, tiles: newTiles };
+
+    newState.availableTerrain = { ...newState.availableTerrain! };
+    newState.availableTerrain[removedType]++;
+  }
+
+  return newState;
+}
+
+function handleRemoveHedge(state: GameState, from: HexCoord, to: HexCoord): GameState {
+  const newState = cloneState(state);
+
+  const newHedges = new Set(newState.board.hedges);
+  newHedges.delete(edgeKey(from, to));
+  newState.board = { ...newState.board, hedges: newHedges };
+
+  newState.availableTerrain = { ...newState.availableTerrain! };
+  newState.availableTerrain.hedge++;
+
+  return newState;
+}
+
+function handleFinishTerrainPlacement(state: GameState): GameState {
+  const newState = cloneState(state);
+
+  const opposite: Faction = newState.terrainPlacerFaction === 'imperial' ? 'chaos' : 'imperial';
+  newState.sideSelectionFaction = opposite;
+  newState.activeFaction = opposite;
+  newState.currentPhase = 'side_selection';
+
+  return newState;
+}
+
+function handleSelectSide(state: GameState, side: 'top' | 'bottom'): GameState {
+  const newState = cloneState(state);
+
+  const selectorFaction = newState.sideSelectionFaction!;
+  const otherFaction: Faction = selectorFaction === 'imperial' ? 'chaos' : 'imperial';
+
+  const topRows = [0, 1];
+  const bottomRows = [10, 11];
+
+  const selectorRows = side === 'top' ? topRows : bottomRows;
+  const otherRows = side === 'top' ? bottomRows : topRows;
+
+  newState.deploymentSides = {
+    [selectorFaction]: selectorRows,
+    [otherFaction]: otherRows,
+  } as { imperial: number[]; chaos: number[] };
+
+  // Build unplacedUnits for both factions (types only, no positions)
+  const imperialTypes: UnitType[] = [
+    'men_at_arms', 'men_at_arms', 'men_at_arms',
+    'archer', 'archer',
+    'crossbowman',
+    'imperial_knights', 'imperial_knights', 'imperial_knights',
+    'lord_knights',
+    'mighty_cannon',
+  ];
+  const chaosTypes: UnitType[] = [
+    'goblin', 'goblin',
+    'beastman', 'beastman',
+    'chaos_bowman', 'chaos_bowman',
+    'orc', 'orc',
+    'chaos_warrior', 'chaos_warrior',
+    'wolf_rider', 'wolf_rider',
+    'champions_of_chaos',
+    'ogre_champion',
+  ];
+
+  newState.unplacedUnits = [
+    ...imperialTypes.map(type => ({ type, faction: 'imperial' as Faction })),
+    ...chaosTypes.map(type => ({ type, faction: 'chaos' as Faction })),
+  ];
+
+  // Chaos deploys first
+  newState.deploymentTurn = 'chaos';
+  const chaosRows = newState.deploymentSides.chaos;
+  newState.deploymentZone = { faction: 'chaos', rows: chaosRows };
+  newState.currentPhase = 'deployment';
+  newState.activeFaction = 'chaos';
+
+  return newState;
+}
+
+function handleAutoDeploy(state: GameState): GameState {
+  const newState = cloneState(state);
+  const rng = createRNG(state.seed + 9999);
+
+  if (!newState.unplacedUnits || !newState.deploymentSides) return state;
+
+  // Collect available hexes per faction
+  const occupied = new Set<string>();
+  for (const [, unit] of newState.units) {
+    occupied.add(coordToKey(unit.position));
+  }
+
+  const getAvailableHexes = (rows: number[]): HexCoord[] => {
+    const hexes: HexCoord[] = [];
+    for (const [key, tile] of newState.board.tiles) {
+      if (rows.includes(tile.coord.row) &&
+          tile.terrain !== 'river' && tile.terrain !== 'marsh' &&
+          !occupied.has(key)) {
+        hexes.push(tile.coord);
+      }
+    }
+    return hexes;
+  };
+
+  // Shuffle helper
+  const shuffle = <T>(arr: T[]): T[] => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const imperialHexes = shuffle(getAvailableHexes(newState.deploymentSides.imperial));
+  const chaosHexes = shuffle(getAvailableHexes(newState.deploymentSides.chaos));
+
+  // Separate units by faction and shuffle
+  const imperialUnits = shuffle(newState.unplacedUnits.filter(u => u.faction === 'imperial'));
+  const chaosUnits = shuffle(newState.unplacedUnits.filter(u => u.faction === 'chaos'));
+
+  // Place imperial units
+  let impIdx = 0;
+  for (const entry of imperialUnits) {
+    if (impIdx >= imperialHexes.length) break;
+    // Skip tower for no_tower units
+    const def = getUnitDefinition(entry.type);
+    let pos = imperialHexes[impIdx];
+    const tile = newState.board.tiles.get(coordToKey(pos));
+    if (tile?.terrain === 'tower' && def.special?.includes('no_tower')) {
+      // Find next non-tower hex
+      let found = false;
+      for (let j = impIdx + 1; j < imperialHexes.length; j++) {
+        const t = newState.board.tiles.get(coordToKey(imperialHexes[j]));
+        if (t?.terrain !== 'tower') {
+          [imperialHexes[impIdx], imperialHexes[j]] = [imperialHexes[j], imperialHexes[impIdx]];
+          pos = imperialHexes[impIdx];
+          found = true;
+          break;
+        }
+      }
+      if (!found) break;
+    }
+    const unit = createUnit(entry.type, pos);
+    newState.units.set(unit.id, unit);
+    impIdx++;
+  }
+
+  // Place chaos units
+  let chaosIdx = 0;
+  for (const entry of chaosUnits) {
+    if (chaosIdx >= chaosHexes.length) break;
+    const def = getUnitDefinition(entry.type);
+    let pos = chaosHexes[chaosIdx];
+    const tile = newState.board.tiles.get(coordToKey(pos));
+    if (tile?.terrain === 'tower' && def.special?.includes('no_tower')) {
+      let found = false;
+      for (let j = chaosIdx + 1; j < chaosHexes.length; j++) {
+        const t = newState.board.tiles.get(coordToKey(chaosHexes[j]));
+        if (t?.terrain !== 'tower') {
+          [chaosHexes[chaosIdx], chaosHexes[j]] = [chaosHexes[j], chaosHexes[chaosIdx]];
+          pos = chaosHexes[chaosIdx];
+          found = true;
+          break;
+        }
+      }
+      if (!found) break;
+    }
+    const unit = createUnit(entry.type, pos);
+    newState.units.set(unit.id, unit);
+    chaosIdx++;
+  }
+
+  // All units placed — transition to draw_card
+  const deckRng = createRNG(state.seed);
+  const deck = createBattleDeck();
+  newState.battleDeck = shuffleDeck(deck, deckRng);
+  newState.discardPile = [];
+  newState.currentPhase = 'draw_card';
+  newState.turnNumber = 1;
+  newState.deploymentZone = undefined;
+  newState.unplacedUnits = undefined;
+  newState.deploymentTurn = undefined;
+
+  return newState;
+}
+
 function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitType, position: HexCoord): GameState {
   const newState = cloneState(state);
 
@@ -198,6 +465,23 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
     newState.turnNumber = 1;
     newState.deploymentZone = undefined;
     newState.unplacedUnits = undefined;
+    newState.deploymentTurn = undefined;
+    // Keep deploymentSides for facing direction reference during gameplay
+  } else if (newState.standardGame && newState.deploymentTurn && newState.deploymentSides) {
+    // Standard game: alternate deployment turns
+    const otherFaction: Faction = newState.deploymentTurn === 'imperial' ? 'chaos' : 'imperial';
+    // Switch to other faction if they still have units to place
+    const otherHasUnits = newState.unplacedUnits.some(u => u.faction === otherFaction);
+    const currentHasUnits = newState.unplacedUnits.some(u => u.faction === newState.deploymentTurn);
+
+    if (otherHasUnits) {
+      newState.deploymentTurn = otherFaction;
+      newState.activeFaction = otherFaction;
+      newState.deploymentZone = { faction: otherFaction, rows: newState.deploymentSides[otherFaction] };
+    } else if (currentHasUnits) {
+      // Other faction done, keep current
+      newState.deploymentZone = { faction: newState.deploymentTurn, rows: newState.deploymentSides[newState.deploymentTurn] };
+    }
   }
 
   return newState;
@@ -1049,5 +1333,10 @@ function cloneState(state: GameState): GameState {
     } : null,
     deploymentZone: state.deploymentZone ? { ...state.deploymentZone, rows: [...state.deploymentZone.rows] } : undefined,
     unplacedUnits: state.unplacedUnits ? state.unplacedUnits.map(u => ({ ...u })) : undefined,
+    availableTerrain: state.availableTerrain ? { ...state.availableTerrain } : undefined,
+    deploymentSides: state.deploymentSides ? {
+      imperial: [...state.deploymentSides.imperial],
+      chaos: [...state.deploymentSides.chaos],
+    } : undefined,
   };
 }

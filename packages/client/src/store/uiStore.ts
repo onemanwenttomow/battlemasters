@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { HexCoord, UnitType } from '@battle-masters/game-logic';
+import type { HexCoord, UnitType, PlaceableTerrainType } from '@battle-masters/game-logic';
 
-type Screen = 'menu' | 'game' | 'victory' | 'scenario_select';
+type Screen = 'menu' | 'game' | 'victory' | 'scenario_select' | 'standard_game_setup';
 
 interface PendingAttack {
   attackerId: string;
@@ -42,6 +42,9 @@ interface UIStore {
   showCannonOverlay: boolean;
   previewCannonPath: HexCoord[] | null;
   selectedDeploymentUnitType: UnitType | null;
+  selectedTerrainPiece: PlaceableTerrainType | 'hedge' | null;
+  ditchPreviewOrientation: number;
+  lastPlacedDitchCoord: { col: number; row: number } | null;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -57,6 +60,10 @@ interface UIStore {
   setShowCannonOverlay: (show: boolean) => void;
   setPreviewCannonPath: (path: HexCoord[] | null) => void;
   setSelectedDeploymentUnitType: (unitType: UnitType | null) => void;
+  setSelectedTerrainPiece: (piece: PlaceableTerrainType | 'hedge' | null) => void;
+  setDitchPreviewOrientation: (orientation: number) => void;
+  cycleDitchOrientation: () => void;
+  setLastPlacedDitchCoord: (coord: { col: number; row: number } | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -73,6 +80,9 @@ export const useUIStore = create<UIStore>((set) => ({
   showCannonOverlay: false,
   previewCannonPath: null,
   selectedDeploymentUnitType: null,
+  selectedTerrainPiece: null,
+  ditchPreviewOrientation: 0,
+  lastPlacedDitchCoord: null,
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -88,4 +98,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowCannonOverlay: (show) => set({ showCannonOverlay: show }),
   setPreviewCannonPath: (path) => set({ previewCannonPath: path }),
   setSelectedDeploymentUnitType: (unitType) => set({ selectedDeploymentUnitType: unitType }),
+  setSelectedTerrainPiece: (piece) => set({ selectedTerrainPiece: piece }),
+  setDitchPreviewOrientation: (orientation) => set({ ditchPreviewOrientation: orientation }),
+  cycleDitchOrientation: () => set((s) => ({ ditchPreviewOrientation: (s.ditchPreviewOrientation + 1) % 6 })),
+  setLastPlacedDitchCoord: (coord) => set({ lastPlacedDitchCoord: coord }),
 }));

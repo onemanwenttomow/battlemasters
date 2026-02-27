@@ -1,14 +1,15 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
+import type { PlaceableTerrainType } from '@battle-masters/game-logic';
 import { getCardImage, getOgreSubCardImage } from './cardImages';
 
-const FACTION_LABELS = {
+const FACTION_LABELS: Record<string, string> = {
   imperial: 'Imperial Army',
   chaos: 'Chaos Army',
 };
 
-const FACTION_COLORS = {
+const FACTION_COLORS: Record<string, string> = {
   imperial: '#4488cc',
   chaos: '#cc4444',
 };
@@ -25,6 +26,10 @@ export function GameHUD() {
   const setShowCannonOverlay = useUIStore((s) => s.setShowCannonOverlay);
   const selectedDeploymentUnitType = useUIStore((s) => s.selectedDeploymentUnitType);
   const setSelectedDeploymentUnitType = useUIStore((s) => s.setSelectedDeploymentUnitType);
+  const selectedTerrainPiece = useUIStore((s) => s.selectedTerrainPiece);
+  const setSelectedTerrainPiece = useUIStore((s) => s.setSelectedTerrainPiece);
+  const ditchPreviewOrientation = useUIStore((s) => s.ditchPreviewOrientation);
+  const cycleDitchOrientation = useUIStore((s) => s.cycleDitchOrientation);
 
   if (!state) return null;
 
@@ -59,6 +64,124 @@ export function GameHUD() {
         </div>
       </div>
 
+      {/* Terrain Placement Toolbar */}
+      {state.currentPhase === 'terrain_placement' && state.availableTerrain && (
+        <div style={{
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          border: '2px solid #c4a35a',
+          textAlign: 'center',
+          pointerEvents: 'auto',
+        }}>
+          <div style={{ fontSize: '0.85rem', color: '#c4a35a', fontWeight: 'bold', marginBottom: 6 }}>
+            Place Terrain
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#aaa', marginBottom: 8 }}>
+            {FACTION_LABELS[state.activeFaction]} places terrain pieces
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {([
+              { type: 'tower' as const, label: 'Tower', count: state.availableTerrain.tower },
+              { type: 'marsh' as const, label: 'Swamp', count: state.availableTerrain.marsh },
+              { type: 'ditch' as const, label: 'Ditch', count: state.availableTerrain.ditch },
+              { type: 'hedge' as const, label: 'Hedge', count: state.availableTerrain.hedge },
+            ]).map(({ type, label, count }) => {
+              const isSelected = selectedTerrainPiece === type;
+              const disabled = count <= 0;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setSelectedTerrainPiece(isSelected ? null : type)}
+                  disabled={disabled}
+                  style={{
+                    background: isSelected ? 'rgba(196,163,90,0.3)' : disabled ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.5)',
+                    border: `1px solid ${isSelected ? '#c4a35a' : disabled ? '#333' : '#666'}`,
+                    color: isSelected ? '#c4a35a' : disabled ? '#555' : '#ccc',
+                    padding: '4px 10px',
+                    borderRadius: 4,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: isSelected ? 'bold' : 'normal',
+                  }}
+                >
+                  {label}: {count}
+                </button>
+              );
+            })}
+          </div>
+          {selectedTerrainPiece === 'ditch' && (
+            <div style={{ fontSize: '0.7rem', color: '#aaa', marginBottom: 6 }}>
+              Orientation: {ditchPreviewOrientation}{' '}
+              <button
+                onClick={cycleDitchOrientation}
+                style={{
+                  background: 'rgba(196,163,90,0.2)',
+                  border: '1px solid #c4a35a',
+                  color: '#c4a35a',
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  fontSize: '0.7rem',
+                }}
+              >
+                Rotate (R)
+              </button>
+            </div>
+          )}
+          <div style={{ fontSize: '0.65rem', color: '#666', marginBottom: 6 }}>
+            Click to place. Right-click to remove.
+          </div>
+          <button
+            onClick={() => dispatch({ type: 'FINISH_TERRAIN_PLACEMENT' })}
+            style={btnStyle('#c4a35a')}
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      {/* Side Selection UI */}
+      {state.currentPhase === 'side_selection' && (
+        <div style={{
+          background: 'rgba(0,0,0,0.85)',
+          borderRadius: 10,
+          padding: '16px 24px',
+          border: '2px solid #c4a35a',
+          textAlign: 'center',
+          pointerEvents: 'auto',
+        }}>
+          <div style={{ fontSize: '1rem', color: '#c4a35a', fontWeight: 'bold', marginBottom: 8 }}>
+            {FACTION_LABELS[state.activeFaction]} Chooses Side
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: 16 }}>
+            Pick which side of the board to deploy on
+          </div>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <button
+              onClick={() => dispatch({ type: 'SELECT_SIDE', side: 'top' })}
+              style={{
+                ...btnStyle('#c4a35a'),
+                padding: '10px 24px',
+                fontSize: '0.9rem',
+              }}
+            >
+              Top (Rows 0-1)
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'SELECT_SIDE', side: 'bottom' })}
+              style={{
+                ...btnStyle('#c4a35a'),
+                padding: '10px 24px',
+                fontSize: '0.9rem',
+              }}
+            >
+              Bottom (Rows 10-11)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Deployment Phase UI */}
       {state.currentPhase === 'deployment' && state.unplacedUnits && (
         <div style={{
@@ -68,21 +191,25 @@ export function GameHUD() {
           border: '2px solid #44cc88',
           textAlign: 'center',
           maxWidth: 200,
+          pointerEvents: 'auto',
         }}>
           <div style={{ fontSize: '0.85rem', color: '#44cc88', fontWeight: 'bold', marginBottom: 6 }}>
-            Deploy Chaos Units
+            {state.standardGame && state.deploymentTurn
+              ? `Deploy ${FACTION_LABELS[state.deploymentTurn]} Unit`
+              : 'Deploy Units'}
           </div>
           <div style={{ fontSize: '0.7rem', color: '#aaa', marginBottom: 8 }}>
-            Select a unit type, then click a hex in the deployment zone (rows 0-1)
+            Select a unit type, then click a hex in the deployment zone
           </div>
           <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 6 }}>
             {state.unplacedUnits.length} unit{state.unplacedUnits.length !== 1 ? 's' : ''} remaining
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
             {(() => {
-              // Group unplaced units by type with counts
+              // Group unplaced units by type with counts (filtered by deployment turn in standard game)
               const counts = new Map<string, number>();
               for (const u of state.unplacedUnits!) {
+                if (state.standardGame && state.deploymentTurn && u.faction !== state.deploymentTurn) continue;
                 counts.set(u.type, (counts.get(u.type) || 0) + 1);
               }
               return Array.from(counts.entries()).map(([unitType, count]) => {
@@ -109,6 +236,24 @@ export function GameHUD() {
               });
             })()}
           </div>
+          {state.standardGame && state.deploymentSides && (
+            <button
+              onClick={() => dispatch({ type: 'AUTO_DEPLOY' })}
+              style={{
+                marginTop: 8,
+                background: 'rgba(196,163,90,0.2)',
+                border: '1px solid #c4a35a',
+                color: '#c4a35a',
+                padding: '5px 12px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+              }}
+            >
+              Auto Deploy All
+            </button>
+          )}
         </div>
       )}
 

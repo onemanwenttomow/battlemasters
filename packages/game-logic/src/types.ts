@@ -192,10 +192,16 @@ export interface CannonFireState {
   adjacentShot: boolean;
 }
 
+// ─── Placeable Terrain (Standard Game) ────────────────────────
+
+export type PlaceableTerrainType = 'tower' | 'marsh' | 'ditch';
+
 // ─── Game Phases ───────────────────────────────────────────────
 
 export type GamePhase =
   | 'setup'
+  | 'terrain_placement'
+  | 'side_selection'
   | 'deployment'
   | 'draw_card'
   | 'activation'
@@ -208,7 +214,15 @@ export type GamePhase =
 
 export type GameAction =
   | { type: 'START_GAME'; scenarioId?: string }
+  | { type: 'START_STANDARD_GAME'; terrainPlacer: Faction }
+  | { type: 'PLACE_TERRAIN'; terrainType: PlaceableTerrainType; position: HexCoord; orientation?: number }
+  | { type: 'PLACE_HEDGE'; from: HexCoord; to: HexCoord }
+  | { type: 'REMOVE_TERRAIN'; position: HexCoord }
+  | { type: 'REMOVE_HEDGE'; from: HexCoord; to: HexCoord }
+  | { type: 'FINISH_TERRAIN_PLACEMENT' }
+  | { type: 'SELECT_SIDE'; side: 'top' | 'bottom' }
   | { type: 'PLACE_UNIT'; unitType: UnitType; position: HexCoord }
+  | { type: 'AUTO_DEPLOY' }
   | { type: 'DRAW_CARD' }
   | { type: 'SELECT_UNIT'; unitId: string }
   | { type: 'MOVE_UNIT'; unitId: string; to: HexCoord }
@@ -252,6 +266,13 @@ export interface GameState {
   // Deployment phase
   deploymentZone?: { faction: Faction; rows: number[] };
   unplacedUnits?: { type: UnitType; faction: Faction }[];
+  // Standard Game fields
+  standardGame?: boolean;
+  terrainPlacerFaction?: Faction;
+  availableTerrain?: { tower: number; marsh: number; ditch: number; hedge: number };
+  sideSelectionFaction?: Faction;
+  deploymentSides?: { imperial: number[]; chaos: number[] };
+  deploymentTurn?: Faction;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

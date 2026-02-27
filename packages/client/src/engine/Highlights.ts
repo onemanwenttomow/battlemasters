@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HexCoord } from '@battle-masters/game-logic';
 import { hexToWorld, HEX_SIZE } from '@battle-masters/game-logic';
 
-type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'deploymentZone' | 'cannonRange' | 'cannonPath' | 'cannonPathPreview' | 'cannonTileFlying' | 'cannonTileBouncing' | 'cannonTileExplosion';
+type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'deploymentZone' | 'cannonRange' | 'cannonPath' | 'cannonPathPreview' | 'cannonTileFlying' | 'cannonTileBouncing' | 'cannonTileExplosion' | 'validPlacement' | 'sideSelectionTop' | 'sideSelectionBottom';
 
 const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   move: 0x44aaff,
@@ -16,6 +16,9 @@ const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   cannonTileFlying: 0x4488ff,
   cannonTileBouncing: 0xffaa44,
   cannonTileExplosion: 0xff2222,
+  validPlacement: 0x44cc88,
+  sideSelectionTop: 0xc4a35a,
+  sideSelectionBottom: 0xc4a35a,
 };
 
 export class Highlights {
@@ -109,6 +112,10 @@ export class Highlights {
         mat.opacity = 0.5 + Math.sin(this.time * 4) * 0.2;
       } else if (type === 'cannonPath') {
         mat.opacity = 0.15 + Math.sin(this.time * 3) * 0.1;
+      } else if (type === 'validPlacement') {
+        mat.opacity = 0.2 + Math.sin(this.time * 2) * 0.1;
+      } else if (type === 'sideSelectionTop' || type === 'sideSelectionBottom') {
+        mat.opacity = 0.25 + Math.sin(this.time * 2) * 0.15;
       } else {
         mat.opacity = 0.5 + Math.sin(this.time * 4) * 0.3;
       }
@@ -144,6 +151,23 @@ export class Highlights {
       explosion: 'cannonTileExplosion',
     };
     this.addHighlight(hex, highlightMap[tileType]);
+  }
+
+  /** Show valid terrain placement highlights */
+  showValidPlacementHighlights(hexes: HexCoord[]) {
+    for (const hex of hexes) {
+      this.addHighlight(hex, 'validPlacement');
+    }
+  }
+
+  /** Show side selection highlights */
+  showSideSelectionHighlights(topHexes: HexCoord[], bottomHexes: HexCoord[]) {
+    for (const hex of topHexes) {
+      this.addHighlight(hex, 'sideSelectionTop');
+    }
+    for (const hex of bottomHexes) {
+      this.addHighlight(hex, 'sideSelectionBottom');
+    }
   }
 
   /** Remove all highlights */

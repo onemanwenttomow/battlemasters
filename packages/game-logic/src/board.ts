@@ -89,6 +89,36 @@ export function createDefaultBoard(): BoardState {
   };
 }
 
+/** Create a bare board for Standard Game — same layout but without tower/marsh/ditch and no hedges */
+export function createBareBoard(): BoardState {
+  const tiles = new Map<string, HexTile>();
+
+  for (let row = 0; row < BOARD_HEIGHT; row++) {
+    const rowData = BOARD_LAYOUT[row];
+    for (let col = 0; col < rowData.length; col++) {
+      const coord: HexCoord = { col, row };
+      let terrain = mapTerrain(rowData[col], row);
+      // Replace placeable terrain with plain
+      if (terrain === 'tower' || terrain === 'marsh' || terrain === 'ditch') {
+        terrain = 'plain';
+      }
+      const tile: HexTile = {
+        coord,
+        terrain,
+        elevation: 0,
+      };
+      tiles.set(coordToKey(coord), tile);
+    }
+  }
+
+  return {
+    width: BOARD_WIDTH,
+    height: BOARD_HEIGHT,
+    tiles,
+    hedges: new Set<string>(),
+  };
+}
+
 /** Get a tile from the board, returning undefined if out of bounds */
 export function getTile(
   board: BoardState,

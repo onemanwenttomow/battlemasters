@@ -4,6 +4,7 @@ import { useGameStore } from './store/gameStore';
 import { useGameEngine } from './hooks/useGameEngine';
 import { MainMenu } from './ui/MainMenu';
 import { ScenarioSelect } from './ui/ScenarioSelect';
+import { StandardGameSetup } from './ui/StandardGameSetup';
 import { GameHUD } from './ui/GameHUD';
 import { UnitPanel } from './ui/UnitPanel';
 import { CombatLog } from './ui/CombatLog';
@@ -53,6 +54,10 @@ export default function App() {
 
   if (screen === 'scenario_select') {
     return <ScenarioSelect />;
+  }
+
+  if (screen === 'standard_game_setup') {
+    return <StandardGameSetup />;
   }
 
   return <GameScreen />;

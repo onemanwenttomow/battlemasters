@@ -32,6 +32,7 @@ interface GameStore {
 
   // Actions
   initGame: (seed?: number, scenarioId?: string) => void;
+  initStandardGame: (terrainPlacer: Faction) => void;
   dispatch: (action: GameAction) => void;
   syncState: (serverState: GameState) => void;
 }
@@ -65,6 +66,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   initGame: (seed, scenarioId) => {
     const initial = createInitialState(seed);
     const started = applyAction(initial, { type: 'START_GAME', scenarioId });
+    set({ state: started });
+  },
+
+  initStandardGame: (terrainPlacer) => {
+    const initial = createInitialState();
+    const started = applyAction(initial, { type: 'START_STANDARD_GAME', terrainPlacer });
     set({ state: started });
   },
 
