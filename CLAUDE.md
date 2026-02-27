@@ -47,6 +47,19 @@ npm run test:watch   # Run tests in watch mode
 - Terrain: river (2 fords), forests, hills, tower, roads
 - Two factions: Kingdom (Imperial) vs Dark Legion (Chaos)
 
+### Card System
+
+- **Battle deck** defined in `cards.ts` — each card has `faction`, `unitTypes[]`, `count` (movement), and optional `special`
+- **Card artwork** mapped in `client/src/ui/cardImages.ts` via `getCardImage(card)`
+  - Lookup key: unit types sorted alphabetically, joined with `+`, then `|`, then special type (e.g. `champions_of_chaos+chaos_bowman|`)
+  - **Sort order matters**: JS `.sort()` puts `champions_of_chaos` before `chaos_bowman`/`chaos_warrior` (`'m' < 'o'` at index 3)
+  - Falls back to `card-back.png` if no key matches
+  - Imperial cards: `playing-card-13` through `playing-card-22`
+  - Chaos cards: `playing-card-1` through `playing-card-12`, `playing-card-23` (ALL_MOVE)
+- **Ogre sub-cards** have separate artwork in `assets/cards/ogre/` — `getOgreSubCardImage()` returns move or attack card image
+- **Special card types**: `CHARGE`, `WOLF_RIDER_DOUBLE_MOVE`, `OGRE_RAMPAGE`, `CANNON_FIRE`, `ALL_MOVE`
+- Wolf riders have `movement: 1` normally; the `WOLF_RIDER_DOUBLE_MOVE` card grants 2 via `getEffectiveMovement()` in `validation.ts`
+
 ## Conventions
 
 - Game logic must remain pure — no DOM, no rendering, no external dependencies

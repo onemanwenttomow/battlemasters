@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { HexCoord } from '@battle-masters/game-logic';
+import type { HexCoord, UnitType } from '@battle-masters/game-logic';
 
 type Screen = 'menu' | 'game' | 'victory' | 'scenario_select';
 
@@ -41,6 +41,7 @@ interface UIStore {
   cannonFiringStep: CannonFiringStep;
   showCannonOverlay: boolean;
   previewCannonPath: HexCoord[] | null;
+  selectedDeploymentUnitType: UnitType | null;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -55,6 +56,7 @@ interface UIStore {
   setCannonFiringStep: (step: CannonFiringStep) => void;
   setShowCannonOverlay: (show: boolean) => void;
   setPreviewCannonPath: (path: HexCoord[] | null) => void;
+  setSelectedDeploymentUnitType: (unitType: UnitType | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -70,6 +72,7 @@ export const useUIStore = create<UIStore>((set) => ({
   cannonFiringStep: 'idle',
   showCannonOverlay: false,
   previewCannonPath: null,
+  selectedDeploymentUnitType: null,
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -84,4 +87,5 @@ export const useUIStore = create<UIStore>((set) => ({
   setCannonFiringStep: (step) => set({ cannonFiringStep: step }),
   setShowCannonOverlay: (show) => set({ showCannonOverlay: show }),
   setPreviewCannonPath: (path) => set({ previewCannonPath: path }),
+  setSelectedDeploymentUnitType: (unitType) => set({ selectedDeploymentUnitType: unitType }),
 }));

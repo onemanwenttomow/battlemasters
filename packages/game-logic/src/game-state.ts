@@ -81,6 +81,8 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'START_GAME':
       return handleStartGame(state, action.scenarioId);
+    case 'PLACE_UNIT':
+      return handlePlaceUnit(state, action.unitType, action.position);
     case 'DRAW_CARD':
       return handleDrawCard(state);
     case 'SELECT_UNIT':
@@ -154,6 +156,15 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
     newState.scenarioId = scenarioId;
   }
 
+  // Check if scenario has a deployment phase
+  if (scenario?.deploymentZone && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
+    newState.deploymentZone = { ...scenario.deploymentZone };
+    newState.unplacedUnits = scenario.unplacedUnits.map(u => ({ ...u }));
+    newState.currentPhase = 'deployment';
+    newState.turnNumber = 0;
+    return newState;
+  }
+
   // Create and shuffle the battle deck
   const deck = createBattleDeck();
   newState.battleDeck = shuffleDeck(deck, rng);
@@ -161,6 +172,33 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
 
   newState.currentPhase = 'draw_card';
   newState.turnNumber = 1;
+
+  return newState;
+}
+
+function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitType, position: HexCoord): GameState {
+  const newState = cloneState(state);
+
+  // Create the unit at the position
+  const unit = createUnit(unitType, position);
+  newState.units.set(unit.id, unit);
+
+  // Remove the first matching entry from unplacedUnits
+  const idx = newState.unplacedUnits!.findIndex(u => u.type === unitType);
+  newState.unplacedUnits = [...newState.unplacedUnits!];
+  newState.unplacedUnits.splice(idx, 1);
+
+  // If all units placed, transition to draw_card
+  if (newState.unplacedUnits.length === 0) {
+    const rng = createRNG(state.seed);
+    const deck = createBattleDeck();
+    newState.battleDeck = shuffleDeck(deck, rng);
+    newState.discardPile = [];
+    newState.currentPhase = 'draw_card';
+    newState.turnNumber = 1;
+    newState.deploymentZone = undefined;
+    newState.unplacedUnits = undefined;
+  }
 
   return newState;
 }
@@ -1009,5 +1047,7 @@ function cloneState(state: GameState): GameState {
       targetCoord: { ...state.cannonFireState.targetCoord },
       misfireTile: state.cannonFireState.misfireTile ? { ...state.cannonFireState.misfireTile } : null,
     } : null,
+    deploymentZone: state.deploymentZone ? { ...state.deploymentZone, rows: [...state.deploymentZone.rows] } : undefined,
+    unplacedUnits: state.unplacedUnits ? state.unplacedUnits.map(u => ({ ...u })) : undefined,
   };
 }

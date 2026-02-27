@@ -21,6 +21,8 @@ export function validateAction(state: GameState, action: GameAction): Validation
   switch (action.type) {
     case 'START_GAME':
       return validateStartGame(state);
+    case 'PLACE_UNIT':
+      return validatePlaceUnit(state, action.unitType, action.position);
     case 'DRAW_CARD':
       return validateDrawCard(state);
     case 'SELECT_UNIT':
@@ -54,6 +56,44 @@ function validateStartGame(state: GameState): ValidationResult {
   if (state.currentPhase !== 'setup') {
     return { valid: false, reason: 'Game already started' };
   }
+  return { valid: true };
+}
+
+function validatePlaceUnit(state: GameState, unitType: import('./types.js').UnitType, position: HexCoord): ValidationResult {
+  if (state.currentPhase !== 'deployment') {
+    return { valid: false, reason: 'Not in deployment phase' };
+  }
+
+  if (!state.unplacedUnits || !state.unplacedUnits.some(u => u.type === unitType)) {
+    return { valid: false, reason: 'Unit type not available for placement' };
+  }
+
+  if (!state.deploymentZone || !state.deploymentZone.rows.includes(position.row)) {
+    return { valid: false, reason: 'Position is outside the deployment zone' };
+  }
+
+  const tile = getTile(state.board, position);
+  if (!tile) {
+    return { valid: false, reason: 'Position does not exist' };
+  }
+
+  if (tile.terrain === 'river' || tile.terrain === 'marsh') {
+    return { valid: false, reason: 'Cannot place unit on impassable terrain' };
+  }
+
+  // Check if unit type can enter tower
+  if (tile.terrain === 'tower') {
+    const def = getUnitDefinition(unitType);
+    if (def.special?.includes('no_tower')) {
+      return { valid: false, reason: 'This unit cannot be placed in the tower' };
+    }
+  }
+
+  const occupiedHexes = getOccupiedHexes(state);
+  if (occupiedHexes.has(coordToKey(position))) {
+    return { valid: false, reason: 'Position is already occupied' };
+  }
+
   return { valid: true };
 }
 

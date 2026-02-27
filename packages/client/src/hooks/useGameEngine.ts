@@ -144,6 +144,21 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
 
           case 'hex_click': {
             useUIStore.getState().setInspectedUnit(null);
+
+            // Deployment phase: place unit on hex click
+            if (state.currentPhase === 'deployment' && event.hexCoord) {
+              const selectedType = useUIStore.getState().selectedDeploymentUnitType;
+              if (selectedType) {
+                dispatch({ type: 'PLACE_UNIT', unitType: selectedType, position: event.hexCoord });
+                // Check if more of the same type remain; if not, clear selection
+                const nextState = useGameStore.getState().state;
+                if (nextState?.unplacedUnits && !nextState.unplacedUnits.some(u => u.type === selectedType)) {
+                  useUIStore.getState().setSelectedDeploymentUnitType(null);
+                }
+              }
+              break;
+            }
+
             if (!event.hexCoord || !state.selectedUnitId) break;
             if (state.currentPhase === 'activation') {
               dispatch({
@@ -215,7 +230,9 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           const deferDamageForId = uiState.showDiceRoll
             ? uiState.combatEffectInfo?.damagedUnitId ?? null
             : null;
-          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board);
+          // Invert facing when sides are swapped (chaos in north, imperial in south)
+          const invertFacing = state.scenarioId === 'battle_of_the_river_tengin';
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, invertFacing);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
@@ -313,6 +330,23 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                 }
               }
             }
+          }
+
+          // Deployment phase highlights
+          if (state.currentPhase === 'deployment' && state.deploymentZone) {
+            const deployHexes: import('@battle-masters/game-logic').HexCoord[] = [];
+            const occupied = new Set<string>();
+            for (const [, unit] of state.units) {
+              occupied.add(coordToKey(unit.position));
+            }
+            for (const [key, tile] of state.board.tiles) {
+              if (state.deploymentZone.rows.includes(tile.coord.row) &&
+                  tile.terrain !== 'river' && tile.terrain !== 'marsh' &&
+                  !occupied.has(key)) {
+                deployHexes.push(tile.coord);
+              }
+            }
+            highlights.showDeploymentZoneHighlights(deployHexes);
           }
 
           // Ogre rampage highlights

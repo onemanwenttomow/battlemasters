@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { HexCoord } from '@battle-masters/game-logic';
 import { hexToWorld, HEX_SIZE } from '@battle-masters/game-logic';
 
-type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'cannonRange' | 'cannonPath' | 'cannonPathPreview' | 'cannonTileFlying' | 'cannonTileBouncing' | 'cannonTileExplosion';
+type HighlightType = 'move' | 'attack' | 'selected' | 'activatable' | 'deploymentZone' | 'cannonRange' | 'cannonPath' | 'cannonPathPreview' | 'cannonTileFlying' | 'cannonTileBouncing' | 'cannonTileExplosion';
 
 const HIGHLIGHT_COLORS: Record<HighlightType, number> = {
   move: 0x44aaff,
   attack: 0xff4444,
   selected: 0xffcc00,
   activatable: 0xffcc00,
+  deploymentZone: 0x44cc88,
   cannonRange: 0xff8844,
   cannonPath: 0xff6622,
   cannonPathPreview: 0xff8844,
@@ -56,6 +57,13 @@ export class Highlights {
   showActivatableHighlights(hexes: HexCoord[]) {
     for (const hex of hexes) {
       this.addHighlight(hex, 'activatable');
+    }
+  }
+
+  /** Show deployment zone highlights */
+  showDeploymentZoneHighlights(hexes: HexCoord[]) {
+    for (const hex of hexes) {
+      this.addHighlight(hex, 'deploymentZone');
     }
   }
 

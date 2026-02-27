@@ -23,6 +23,8 @@ export function GameHUD() {
   const previewCannonPath = useUIStore((s) => s.previewCannonPath);
   const setPreviewCannonPath = useUIStore((s) => s.setPreviewCannonPath);
   const setShowCannonOverlay = useUIStore((s) => s.setShowCannonOverlay);
+  const selectedDeploymentUnitType = useUIStore((s) => s.selectedDeploymentUnitType);
+  const setSelectedDeploymentUnitType = useUIStore((s) => s.setSelectedDeploymentUnitType);
 
   if (!state) return null;
 
@@ -56,6 +58,59 @@ export function GameHUD() {
           {state.currentPhase.replace('_', ' ')}
         </div>
       </div>
+
+      {/* Deployment Phase UI */}
+      {state.currentPhase === 'deployment' && state.unplacedUnits && (
+        <div style={{
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          border: '2px solid #44cc88',
+          textAlign: 'center',
+          maxWidth: 200,
+        }}>
+          <div style={{ fontSize: '0.85rem', color: '#44cc88', fontWeight: 'bold', marginBottom: 6 }}>
+            Deploy Chaos Units
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#aaa', marginBottom: 8 }}>
+            Select a unit type, then click a hex in the deployment zone (rows 0-1)
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 6 }}>
+            {state.unplacedUnits.length} unit{state.unplacedUnits.length !== 1 ? 's' : ''} remaining
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
+            {(() => {
+              // Group unplaced units by type with counts
+              const counts = new Map<string, number>();
+              for (const u of state.unplacedUnits!) {
+                counts.set(u.type, (counts.get(u.type) || 0) + 1);
+              }
+              return Array.from(counts.entries()).map(([unitType, count]) => {
+                const def = getUnitDefinition(unitType as import('@battle-masters/game-logic').UnitType);
+                const isSelected = selectedDeploymentUnitType === unitType;
+                return (
+                  <button
+                    key={unitType}
+                    onClick={() => setSelectedDeploymentUnitType(isSelected ? null : unitType as import('@battle-masters/game-logic').UnitType)}
+                    style={{
+                      background: isSelected ? 'rgba(68,204,136,0.3)' : 'rgba(0,0,0,0.5)',
+                      border: `1px solid ${isSelected ? '#44cc88' : '#555'}`,
+                      color: isSelected ? '#44cc88' : '#ccc',
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: isSelected ? 'bold' : 'normal',
+                    }}
+                  >
+                    {def.name} {count > 1 ? `(${count})` : ''}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Current Card */}
       {state.currentCard && (

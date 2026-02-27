@@ -196,6 +196,7 @@ export interface CannonFireState {
 
 export type GamePhase =
   | 'setup'
+  | 'deployment'
   | 'draw_card'
   | 'activation'
   | 'combat'
@@ -207,6 +208,7 @@ export type GamePhase =
 
 export type GameAction =
   | { type: 'START_GAME'; scenarioId?: string }
+  | { type: 'PLACE_UNIT'; unitType: UnitType; position: HexCoord }
   | { type: 'DRAW_CARD' }
   | { type: 'SELECT_UNIT'; unitId: string }
   | { type: 'MOVE_UNIT'; unitId: string; to: HexCoord }
@@ -247,6 +249,9 @@ export interface GameState {
   towerState: TowerState;
   // Scenario
   scenarioId?: string;
+  // Deployment phase
+  deploymentZone?: { faction: Faction; rows: number[] };
+  unplacedUnits?: { type: UnitType; faction: Faction }[];
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
