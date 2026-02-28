@@ -438,7 +438,7 @@ export class HexBoard {
     }
 
     if (tile.terrain === "ditch") {
-      const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0);
+      const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0, tile.fortifiedSides ?? 4);
       this.group.add(ditchOverlay);
       models.push(ditchOverlay as unknown as THREE.Group);
 
@@ -564,7 +564,7 @@ export class HexBoard {
 
       // Place ditch overlay + fortification stakes
       if (tile.terrain === "ditch") {
-        const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0);
+        const ditchOverlay = this.createDitchOverlay(pos, tile.orientation ?? 0, tile.fortifiedSides ?? 4);
         this.group.add(ditchOverlay);
         models.push(ditchOverlay as unknown as THREE.Group);
 
@@ -646,10 +646,10 @@ export class HexBoard {
 
   /**
    * Create a ditch overlay — a flat textured hex placed on top of the base board tile.
-   * Uses the ditch artwork from /assets/terrain/hex-tiles/ditch_1.png.
+   * Picks the correct artwork based on fortifiedSides: 4→ditch_1, 2→ditch_2, 3→ditch_3.
    * Rotates to match the tile orientation (0-5, each step is 60°).
    */
-  private createDitchOverlay(pos: { x: number; z: number }, orientation: number): THREE.Mesh {
+  private createDitchOverlay(pos: { x: number; z: number }, orientation: number, fortifiedSides: number = 4): THREE.Mesh {
     const sqrt3 = Math.sqrt(3);
     const shape = new THREE.Shape();
     for (let i = 0; i < 6; i++) {
@@ -679,8 +679,11 @@ export class HexBoard {
     }
     uv.needsUpdate = true;
 
+    // Pick texture based on fortified sides: 4→ditch_1, 2→ditch_2, 3→ditch_3
+    const ditchTextureMap: Record<number, string> = { 4: 'ditch_1', 2: 'ditch_2', 3: 'ditch_3' };
+    const textureName = ditchTextureMap[fortifiedSides] ?? 'ditch_1';
     const texture = this.textureLoader.load(
-      "/assets/terrain/hex-tiles/ditch_1.png",
+      `/assets/terrain/hex-tiles/${textureName}.png`,
     );
     texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -693,9 +696,9 @@ export class HexBoard {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    // Base rotation Math.PI corresponds to orientation 1 (the default ditch).
-    // Each orientation step is 60° (Math.PI / 3).
-    mesh.rotation.z = Math.PI + (orientation - 1) * (Math.PI / 3);
+    // ditch_1 artwork base corresponds to orientation 1; ditch_2/ditch_3 to orientation 0.
+    const baseOrientation = fortifiedSides === 4 ? 1 : 0;
+    mesh.rotation.z = Math.PI + (orientation - baseOrientation) * (Math.PI / 3);
     mesh.position.set(pos.x, this.tileTopY + 0.02, pos.z);
     mesh.receiveShadow = true;
 
@@ -703,16 +706,21 @@ export class HexBoard {
   }
 
   /**
-   * Create procedural sharpened stake fortifications on the 4 fortified edges of a ditch tile.
-   * Orientation determines which two adjacent sides are open (no stakes).
-   * Stakes lean outward at 45° with sharpened cone tips, connected by two horizontal rails.
+   * Create procedural sharpened stake fortifications on the fortified edges of a ditch tile.
+   * Orientation determines which consecutive sides are open (no stakes).
+   * fortifiedSides determines how many sides have stakes (2, 3, or 4).
    */
   private createDitchFortifications(
     tile: HexTile,
     pos: { x: number; z: number },
   ): THREE.Group[] {
     const orientation = (tile.orientation ?? 0) % 6;
-    const openDirs = [orientation, (orientation + 1) % 6];
+    const fortifiedSides = tile.fortifiedSides ?? 4;
+    const openCount = 6 - fortifiedSides;
+    const openDirs: number[] = [];
+    for (let i = 0; i < openCount; i++) {
+      openDirs.push((orientation + i) % 6);
+    }
 
     const results: THREE.Group[] = [];
     const woodMat = new THREE.MeshStandardMaterial({

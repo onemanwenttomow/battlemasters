@@ -44,6 +44,7 @@ interface UIStore {
   selectedDeploymentUnitType: UnitType | null;
   selectedTerrainPiece: PlaceableTerrainType | 'hedge' | null;
   ditchPreviewOrientation: number;
+  ditchPreviewFortifiedSides: number;
   lastPlacedDitchCoord: { col: number; row: number } | null;
 
   setScreen: (screen: Screen) => void;
@@ -63,6 +64,7 @@ interface UIStore {
   setSelectedTerrainPiece: (piece: PlaceableTerrainType | 'hedge' | null) => void;
   setDitchPreviewOrientation: (orientation: number) => void;
   cycleDitchOrientation: () => void;
+  cycleDitchFortifiedSides: () => void;
   setLastPlacedDitchCoord: (coord: { col: number; row: number } | null) => void;
 }
 
@@ -82,6 +84,7 @@ export const useUIStore = create<UIStore>((set) => ({
   selectedDeploymentUnitType: null,
   selectedTerrainPiece: null,
   ditchPreviewOrientation: 0,
+  ditchPreviewFortifiedSides: 4,
   lastPlacedDitchCoord: null,
 
   setScreen: (screen) => set({ screen }),
@@ -101,5 +104,10 @@ export const useUIStore = create<UIStore>((set) => ({
   setSelectedTerrainPiece: (piece) => set({ selectedTerrainPiece: piece }),
   setDitchPreviewOrientation: (orientation) => set({ ditchPreviewOrientation: orientation }),
   cycleDitchOrientation: () => set((s) => ({ ditchPreviewOrientation: (s.ditchPreviewOrientation + 1) % 6 })),
+  cycleDitchFortifiedSides: () => set((s) => {
+    const cycle = [4, 3, 2];
+    const idx = cycle.indexOf(s.ditchPreviewFortifiedSides);
+    return { ditchPreviewFortifiedSides: cycle[(idx + 1) % cycle.length] };
+  }),
   setLastPlacedDitchCoord: (coord) => set({ lastPlacedDitchCoord: coord }),
 }));

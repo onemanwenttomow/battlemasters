@@ -78,7 +78,8 @@ export interface HexTile {
   coord: HexCoord;
   terrain: TerrainType;
   elevation: number;
-  orientation?: number; // Ditch: two adjacent open sides at orientation and (orientation+1)%6. 0=E+NE, 1=NE+NW, 2=NW+W, etc.
+  orientation?: number; // Ditch: first open direction. 0=E, 1=NE, 2=NW, 3=W, 4=SW, 5=SE
+  fortifiedSides?: number; // Ditch: number of fortified sides (2, 3, or 4). Default 4.
 }
 
 export interface BoardState {
@@ -215,7 +216,7 @@ export type GamePhase =
 export type GameAction =
   | { type: 'START_GAME'; scenarioId?: string }
   | { type: 'START_STANDARD_GAME'; terrainPlacer: Faction }
-  | { type: 'PLACE_TERRAIN'; terrainType: PlaceableTerrainType; position: HexCoord; orientation?: number }
+  | { type: 'PLACE_TERRAIN'; terrainType: PlaceableTerrainType; position: HexCoord; orientation?: number; fortifiedSides?: number }
   | { type: 'PLACE_HEDGE'; from: HexCoord; to: HexCoord }
   | { type: 'REMOVE_TERRAIN'; position: HexCoord }
   | { type: 'REMOVE_HEDGE'; from: HexCoord; to: HexCoord }

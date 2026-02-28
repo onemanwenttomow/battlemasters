@@ -156,6 +156,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
                   terrainType: piece,
                   position: event.hexCoord,
                   orientation: piece === 'ditch' ? uiState.ditchPreviewOrientation : undefined,
+                  fortifiedSides: piece === 'ditch' ? uiState.ditchPreviewFortifiedSides : undefined,
                 });
                 if (piece === 'ditch') {
                   useUIStore.getState().setLastPlacedDitchCoord(event.hexCoord);
@@ -272,23 +273,38 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
         }
       });
 
-      // Keyboard handler for ditch rotation
+      // Keyboard handler for ditch rotation and variant cycling
       const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'r' || e.key === 'R') {
-          const state = useGameStore.getState().state;
-          if (state?.currentPhase === 'terrain_placement') {
-            const uiState = useUIStore.getState();
-            const newOrientation = (uiState.ditchPreviewOrientation + 1) % 6;
-            uiState.setDitchPreviewOrientation(newOrientation);
+        const state = useGameStore.getState().state;
+        if (state?.currentPhase !== 'terrain_placement') return;
+        const uiState = useUIStore.getState();
 
-            // Also rotate the last placed ditch if it still exists
-            const lastDitch = uiState.lastPlacedDitchCoord;
-            if (lastDitch) {
-              const tile = state.board.tiles.get(coordToKey(lastDitch));
-              if (tile?.terrain === 'ditch') {
-                dispatch({ type: 'REMOVE_TERRAIN', position: lastDitch });
-                dispatch({ type: 'PLACE_TERRAIN', terrainType: 'ditch', position: lastDitch, orientation: newOrientation });
-              }
+        if (e.key === 'r' || e.key === 'R') {
+          const newOrientation = (uiState.ditchPreviewOrientation + 1) % 6;
+          uiState.setDitchPreviewOrientation(newOrientation);
+
+          // Also rotate the last placed ditch if it still exists
+          const lastDitch = uiState.lastPlacedDitchCoord;
+          if (lastDitch) {
+            const tile = state.board.tiles.get(coordToKey(lastDitch));
+            if (tile?.terrain === 'ditch') {
+              dispatch({ type: 'REMOVE_TERRAIN', position: lastDitch });
+              dispatch({ type: 'PLACE_TERRAIN', terrainType: 'ditch', position: lastDitch, orientation: newOrientation, fortifiedSides: uiState.ditchPreviewFortifiedSides });
+            }
+          }
+        }
+
+        if (e.key === 'v' || e.key === 'V') {
+          uiState.cycleDitchFortifiedSides();
+          const newFortifiedSides = useUIStore.getState().ditchPreviewFortifiedSides;
+
+          // Also update the last placed ditch if it still exists
+          const lastDitch = uiState.lastPlacedDitchCoord;
+          if (lastDitch) {
+            const tile = state.board.tiles.get(coordToKey(lastDitch));
+            if (tile?.terrain === 'ditch') {
+              dispatch({ type: 'REMOVE_TERRAIN', position: lastDitch });
+              dispatch({ type: 'PLACE_TERRAIN', terrainType: 'ditch', position: lastDitch, orientation: uiState.ditchPreviewOrientation, fortifiedSides: newFortifiedSides });
             }
           }
         }

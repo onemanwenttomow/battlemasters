@@ -6,7 +6,7 @@ import { createUnit, resetUnitIdCounter } from '../src/units';
 import { coordToKey, HexCoord, BoardState, HexTile } from '../src/types';
 
 // Helper: create a minimal board with a single ditch tile
-function createBoardWithDitch(ditchCoord: HexCoord, orientation: number): BoardState {
+function createBoardWithDitch(ditchCoord: HexCoord, orientation: number, fortifiedSides: number = 4): BoardState {
   const tiles = new Map<string, HexTile>();
   // Create a 5x5 area of plain tiles around the ditch
   for (let row = ditchCoord.row - 2; row <= ditchCoord.row + 2; row++) {
@@ -17,7 +17,7 @@ function createBoardWithDitch(ditchCoord: HexCoord, orientation: number): BoardS
         coord,
         terrain: isDitch ? 'ditch' : 'plain',
         elevation: 0,
-        ...(isDitch ? { orientation } : {}),
+        ...(isDitch ? { orientation, fortifiedSides } : {}),
       });
     }
   }
@@ -281,5 +281,127 @@ describe('ditch not on restricted terrain', () => {
     expect(tile?.terrain).toBe('ditch');
     // Confirm surrounding tiles are not river
     expect(getTile(board, { col: 7, row: 5 })?.terrain).not.toBe('river');
+  });
+});
+
+// ─── Ditch variant: 2 fortified sides (ditch_2) ────────────────
+
+describe('isFortifiedEdge — fortifiedSides=2, orientation 0 (E+NE+NW+W open)', () => {
+  // 2 fortified sides starting after 4 open. Open: E(0), NE(1), NW(2), W(3). Fortified: SW(4), SE(5)
+  const board = createBoardWithDitch({ col: 5, row: 4 }, 0, 2);
+
+  it('E edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 4 })).toBe(false);
+  });
+
+  it('NE edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(false);
+  });
+
+  it('NW edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(false);
+  });
+
+  it('W edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(false);
+  });
+
+  it('SW edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
+  });
+
+  it('SE edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
+  });
+});
+
+describe('ditch_2 movement — fortifiedSides=2, orientation 0', () => {
+  const ditchCoord = { col: 5, row: 4 };
+  const board = createBoardWithDitch(ditchCoord, 0, 2); // SW+SE fortified, rest open
+
+  it('can enter ditch from open side (E)', () => {
+    const reachable = getReachableHexes({ col: 6, row: 4 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).toContain(coordToKey(ditchCoord));
+  });
+
+  it('can enter ditch from open side (W)', () => {
+    const reachable = getReachableHexes({ col: 4, row: 4 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).toContain(coordToKey(ditchCoord));
+  });
+
+  it('cannot enter ditch from fortified side (SW)', () => {
+    const reachable = getReachableHexes({ col: 5, row: 5 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).not.toContain(coordToKey(ditchCoord));
+  });
+
+  it('cannot enter ditch from fortified side (SE)', () => {
+    const reachable = getReachableHexes({ col: 6, row: 5 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).not.toContain(coordToKey(ditchCoord));
+  });
+});
+
+// ─── Ditch variant: 3 fortified sides (ditch_3) ────────────────
+
+describe('isFortifiedEdge — fortifiedSides=3, orientation 0 (E+NE+NW open)', () => {
+  // 3 open: E(0), NE(1), NW(2). 3 fortified: W(3), SW(4), SE(5)
+  const board = createBoardWithDitch({ col: 5, row: 4 }, 0, 3);
+
+  it('E edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 4 })).toBe(false);
+  });
+
+  it('NE edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 3 })).toBe(false);
+  });
+
+  it('NW edge is open', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 3 })).toBe(false);
+  });
+
+  it('W edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 4, row: 4 })).toBe(true);
+  });
+
+  it('SW edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 5, row: 5 })).toBe(true);
+  });
+
+  it('SE edge is fortified', () => {
+    expect(isFortifiedEdge(board, { col: 5, row: 4 }, { col: 6, row: 5 })).toBe(true);
+  });
+});
+
+describe('ditch_3 movement — fortifiedSides=3, orientation 0', () => {
+  const ditchCoord = { col: 5, row: 4 };
+  const board = createBoardWithDitch(ditchCoord, 0, 3); // W+SW+SE fortified, E+NE+NW open
+
+  it('can enter ditch from open side (E)', () => {
+    const reachable = getReachableHexes({ col: 6, row: 4 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).toContain(coordToKey(ditchCoord));
+  });
+
+  it('can enter ditch from open side (NW)', () => {
+    const reachable = getReachableHexes({ col: 5, row: 3 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).toContain(coordToKey(ditchCoord));
+  });
+
+  it('cannot enter ditch from fortified side (W)', () => {
+    const reachable = getReachableHexes({ col: 4, row: 4 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).not.toContain(coordToKey(ditchCoord));
+  });
+
+  it('cannot enter ditch from fortified side (SW)', () => {
+    const reachable = getReachableHexes({ col: 5, row: 5 }, 1, board);
+    expect(reachable.map(c => coordToKey(c))).not.toContain(coordToKey(ditchCoord));
+  });
+
+  it('cannot exit through fortified side (SE)', () => {
+    const reachable = getReachableHexes(ditchCoord, 1, board);
+    expect(reachable.map(c => coordToKey(c))).not.toContain(coordToKey({ col: 6, row: 5 }));
+  });
+
+  it('can exit through open side (NE)', () => {
+    const reachable = getReachableHexes(ditchCoord, 1, board);
+    expect(reachable.map(c => coordToKey(c))).toContain(coordToKey({ col: 6, row: 3 }));
   });
 });

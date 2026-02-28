@@ -112,13 +112,19 @@ export function getNeighborDirection(from: HexCoord, to: HexCoord): number {
 }
 
 /**
- * Get the two open directions for a ditch tile based on its orientation.
- * Returns two adjacent direction indices: orientation and (orientation+1)%6.
+ * Get the open (non-fortified) directions for a ditch tile.
+ * Open directions are consecutive starting from the orientation.
+ * fortifiedSides: 2 → 4 open, 3 → 3 open, 4 → 2 open (default).
  * Direction indices: 0=E, 1=NE, 2=NW, 3=W, 4=SW, 5=SE
  */
-function getDitchOpenDirs(orientation: number): [number, number] {
+function getDitchOpenDirs(orientation: number, fortifiedSides: number = 4): number[] {
   const o = orientation % 6;
-  return [o, (o + 1) % 6];
+  const openCount = 6 - fortifiedSides;
+  const dirs: number[] = [];
+  for (let i = 0; i < openCount; i++) {
+    dirs.push((o + i) % 6);
+  }
+  return dirs;
 }
 
 /**
@@ -135,12 +141,12 @@ export function isFortifiedEdge(board: BoardState, from: HexCoord, to: HexCoord)
   const toTile = board.tiles.get(coordToKey(to));
 
   if (fromTile && fromTile.terrain === 'ditch') {
-    const openDirs = getDitchOpenDirs(fromTile.orientation ?? 0);
+    const openDirs = getDitchOpenDirs(fromTile.orientation ?? 0, fromTile.fortifiedSides ?? 4);
     if (!openDirs.includes(dir)) return true;
   }
 
   if (toTile && toTile.terrain === 'ditch') {
-    const openDirs = getDitchOpenDirs(toTile.orientation ?? 0);
+    const openDirs = getDitchOpenDirs(toTile.orientation ?? 0, toTile.fortifiedSides ?? 4);
     if (!openDirs.includes(oppositeDir)) return true;
   }
 

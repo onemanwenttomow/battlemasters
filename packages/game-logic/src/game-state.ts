@@ -84,7 +84,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     case 'START_STANDARD_GAME':
       return handleStartStandardGame(state, action.terrainPlacer);
     case 'PLACE_TERRAIN':
-      return handlePlaceTerrain(state, action.terrainType, action.position, action.orientation);
+      return handlePlaceTerrain(state, action.terrainType, action.position, action.orientation, action.fortifiedSides);
     case 'PLACE_HEDGE':
       return handlePlaceHedge(state, action.from, action.to);
     case 'REMOVE_TERRAIN':
@@ -208,7 +208,7 @@ function handleStartStandardGame(state: GameState, terrainPlacer: Faction): Game
   return newState;
 }
 
-function handlePlaceTerrain(state: GameState, terrainType: PlaceableTerrainType, position: HexCoord, orientation?: number): GameState {
+function handlePlaceTerrain(state: GameState, terrainType: PlaceableTerrainType, position: HexCoord, orientation?: number, fortifiedSides?: number): GameState {
   const newState = cloneState(state);
 
   const newTiles = new Map(newState.board.tiles);
@@ -218,6 +218,7 @@ function handlePlaceTerrain(state: GameState, terrainType: PlaceableTerrainType,
     const updated = { ...existing, terrain: terrainType as import('./types.js').TerrainType };
     if (terrainType === 'ditch') {
       updated.orientation = orientation ?? 0;
+      updated.fortifiedSides = fortifiedSides ?? 4;
     }
     newTiles.set(key, updated);
   }

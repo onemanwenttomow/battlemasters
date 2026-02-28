@@ -30,6 +30,8 @@ export function GameHUD() {
   const setSelectedTerrainPiece = useUIStore((s) => s.setSelectedTerrainPiece);
   const ditchPreviewOrientation = useUIStore((s) => s.ditchPreviewOrientation);
   const cycleDitchOrientation = useUIStore((s) => s.cycleDitchOrientation);
+  const ditchPreviewFortifiedSides = useUIStore((s) => s.ditchPreviewFortifiedSides);
+  const cycleDitchFortifiedSides = useUIStore((s) => s.cycleDitchFortifiedSides);
 
   if (!state) return null;
 
@@ -126,6 +128,21 @@ export function GameHUD() {
                 }}
               >
                 Rotate (R)
+              </button>
+              {' '}Fortified: {ditchPreviewFortifiedSides}{' '}
+              <button
+                onClick={cycleDitchFortifiedSides}
+                style={{
+                  background: 'rgba(196,163,90,0.2)',
+                  border: '1px solid #c4a35a',
+                  color: '#c4a35a',
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  fontSize: '0.7rem',
+                }}
+              >
+                Variant (V)
               </button>
             </div>
           )}

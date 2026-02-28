@@ -71,6 +71,7 @@ export function createDefaultBoard(): BoardState {
       };
       if (terrain === 'ditch') {
         tile.orientation = 1; // NE+NW open — openings face toward (8,4) and (7,4)
+        tile.fortifiedSides = 4;
       }
       tiles.set(coordToKey(coord), tile);
     }
