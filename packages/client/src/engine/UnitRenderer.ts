@@ -72,7 +72,7 @@ export class UnitRenderer {
   private parentGroup: THREE.Group;
   private baseHeight = 0;
   private assetLoader: AssetLoader | null = null;
-  private invertFacing = false;
+  private facingMode: 'default' | 'inverted' | 'east-west' = 'default';
 
   constructor(private scene: THREE.Scene, assetLoader?: AssetLoader) {
     this.parentGroup = new THREE.Group();
@@ -86,9 +86,9 @@ export class UnitRenderer {
 
   /** Sync rendered units with game state.
    *  deferDamageForId: if set, skull tokens for this unit won't update (used during dice roll display)
-   *  invertFacing: if true, imperial faces north and chaos faces south (for scenarios where sides are swapped) */
-  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null, board?: BoardState, invertFacing?: boolean) {
-    this.invertFacing = invertFacing ?? false;
+   *  facingMode: 'default' (chaos=south, imperial=north), 'inverted' (swapped), 'east-west' (chaos=east, imperial=west) */
+  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null, board?: BoardState, facingMode?: 'default' | 'inverted' | 'east-west') {
+    this.facingMode = facingMode ?? 'default';
     const currentIds = new Set(units.keys());
 
     // Remove units no longer in state (unless preserved for pending effects)
@@ -187,11 +187,17 @@ export class UnitRenderer {
         ogre_champion: Math.PI / 2,
       };
       const baseRotation = rotationOverrides[unit.definitionType] ?? 0;
-      // Face units toward the opposing side (rotate 180°)
-      const shouldFlip = this.invertFacing
-        ? unit.faction === 'imperial'
-        : unit.faction === 'chaos';
-      model.rotation.y = baseRotation + (shouldFlip ? Math.PI : 0);
+      // Face units toward the opposing side
+      if (this.facingMode === 'east-west') {
+        // Chaos faces east (right), imperial faces west (left)
+        const ewRotation = unit.faction === 'chaos' ? Math.PI / 2 : -Math.PI / 2;
+        model.rotation.y = baseRotation + ewRotation;
+      } else {
+        const shouldFlip = this.facingMode === 'inverted'
+          ? unit.faction === 'imperial'
+          : unit.faction === 'chaos';
+        model.rotation.y = baseRotation + (shouldFlip ? Math.PI : 0);
+      }
       group.add(model);
     } else {
       // Fallback: standee card

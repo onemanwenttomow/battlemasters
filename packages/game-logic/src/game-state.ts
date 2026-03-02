@@ -172,6 +172,32 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
     newState.scenarioId = scenarioId;
   }
 
+  // Check if scenario uses card-based deployment
+  if (scenario?.cardDeployment && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
+    newState.cardDeployment = true;
+    newState.allUnplacedUnits = scenario.unplacedUnits.map(u => ({ ...u }));
+    newState.justDeployedUnitIds = [];
+    if (scenario.cardDeploymentZones) {
+      newState.cardDeploymentZones = {
+        imperial: {
+          rows: [...scenario.cardDeploymentZones.imperial.rows],
+          cols: scenario.cardDeploymentZones.imperial.cols ? [...scenario.cardDeploymentZones.imperial.cols] : undefined,
+        },
+        chaos: {
+          rows: [...scenario.cardDeploymentZones.chaos.rows],
+          cols: scenario.cardDeploymentZones.chaos.cols ? [...scenario.cardDeploymentZones.chaos.cols] : undefined,
+        },
+      };
+    }
+    // Create and shuffle the battle deck immediately
+    const deck = createBattleDeck();
+    newState.battleDeck = shuffleDeck(deck, rng);
+    newState.discardPile = [];
+    newState.currentPhase = 'draw_card';
+    newState.turnNumber = 1;
+    return newState;
+  }
+
   // Check if scenario has a deployment phase
   if (scenario?.deploymentZone && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
     newState.deploymentZone = { ...scenario.deploymentZone };
@@ -451,13 +477,100 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
   const unit = createUnit(unitType, position);
   newState.units.set(unit.id, unit);
 
+  // Track just-deployed units in card deployment mode
+  if (newState.cardDeployment) {
+    newState.justDeployedUnitIds = [...(newState.justDeployedUnitIds || []), unit.id];
+  }
+
   // Remove the first matching entry from unplacedUnits
   const idx = newState.unplacedUnits!.findIndex(u => u.type === unitType);
   newState.unplacedUnits = [...newState.unplacedUnits!];
   newState.unplacedUnits.splice(idx, 1);
 
-  // If all units placed, transition to draw_card
-  if (newState.unplacedUnits.length === 0) {
+  // Card deployment mode: when all card units placed, decide next phase
+  if (newState.cardDeployment && newState.unplacedUnits.length === 0) {
+    newState.deploymentZone = undefined;
+    newState.unplacedUnits = undefined;
+
+    const card = newState.currentCard!;
+
+    // Check if any units of the card's types were already on board (not just-deployed)
+    const justDeployed = new Set(newState.justDeployedUnitIds || []);
+    let hasPreExistingUnits = false;
+
+    if (card.special === 'ALL_MOVE') {
+      // ALL_MOVE: any unit of this faction that was already on board can activate
+      for (const [id, u] of newState.units) {
+        if (u.faction === card.faction && !justDeployed.has(id)) {
+          hasPreExistingUnits = true;
+          break;
+        }
+      }
+    } else {
+      for (const [id, u] of newState.units) {
+        if (u.faction === card.faction &&
+            card.unitTypes.includes(u.definitionType) &&
+            !justDeployed.has(id)) {
+          hasPreExistingUnits = true;
+          break;
+        }
+      }
+    }
+
+    if (hasPreExistingUnits) {
+      // Enter activation/special phase for pre-existing units
+      if (card.special === 'OGRE_RAMPAGE') {
+        let ogre: import('./types.js').Unit | null = null;
+        for (const [id, u] of newState.units) {
+          if (u.definitionType === 'ogre_champion' && !justDeployed.has(id)) {
+            ogre = u;
+            break;
+          }
+        }
+        if (ogre && ogre.hp > 0) {
+          const ogreSubCardsTotal = ogre.hp;
+          const subDeckRng = createRNG(state.seed + state.turnNumber + 7777);
+          newState.ogreSubDeck = createOgreSubDeck(subDeckRng);
+          newState.ogreSubCardIndex = 0;
+          newState.ogreSubCardsTotal = ogreSubCardsTotal;
+          newState.currentOgreSubCard = null;
+          newState.selectedUnitId = ogre.id;
+          newState.currentPhase = 'ogre_rampage';
+          return newState;
+        }
+      } else if (card.special === 'CANNON_FIRE') {
+        let cannon: import('./types.js').Unit | null = null;
+        for (const [id, u] of newState.units) {
+          if (u.definitionType === 'mighty_cannon' && !justDeployed.has(id)) {
+            cannon = u;
+            break;
+          }
+        }
+        if (cannon && cannon.hp > 0) {
+          newState.selectedUnitId = cannon.id;
+          newState.cannonFireState = null;
+          newState.currentPhase = 'cannon_fire';
+          return newState;
+        }
+      } else {
+        newState.currentPhase = 'activation';
+        return newState;
+      }
+    }
+
+    // No pre-existing units (or special unit not found) — end turn
+    if (newState.currentCard) {
+      newState.discardPile.push(newState.currentCard);
+      newState.currentCard = null;
+    }
+    newState.selectedUnitId = null;
+    newState.turnNumber++;
+    newState.currentPhase = 'draw_card';
+    return newState;
+  }
+
+  // Non-card-deployment: if all units placed, transition to draw_card
+  if (!newState.cardDeployment && newState.unplacedUnits && newState.unplacedUnits.length === 0) {
     const rng = createRNG(state.seed);
     const deck = createBattleDeck();
     newState.battleDeck = shuffleDeck(deck, rng);
@@ -472,8 +585,8 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
     // Standard game: alternate deployment turns
     const otherFaction: Faction = newState.deploymentTurn === 'imperial' ? 'chaos' : 'imperial';
     // Switch to other faction if they still have units to place
-    const otherHasUnits = newState.unplacedUnits.some(u => u.faction === otherFaction);
-    const currentHasUnits = newState.unplacedUnits.some(u => u.faction === newState.deploymentTurn);
+    const otherHasUnits = newState.unplacedUnits!.some(u => u.faction === otherFaction);
+    const currentHasUnits = newState.unplacedUnits!.some(u => u.faction === newState.deploymentTurn);
 
     if (otherHasUnits) {
       newState.deploymentTurn = otherFaction;
@@ -491,6 +604,11 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
 function handleDrawCard(state: GameState): GameState {
   const newState = cloneState(state);
   const rng = createRNG(state.seed + state.turnNumber);
+
+  // Clear justDeployedUnitIds at start of each draw
+  if (newState.cardDeployment) {
+    newState.justDeployedUnitIds = [];
+  }
 
   // If deck is empty, reshuffle discard pile
   if (newState.battleDeck.length === 0) {
@@ -514,6 +632,49 @@ function handleDrawCard(state: GameState): GameState {
     unit.hasActivated = false;
     unit.hasAttacked = false;
     unit.hasMoved = false;
+  }
+
+  // Card deployment: check if unplaced units match this card
+  if (newState.cardDeployment && newState.allUnplacedUnits && newState.allUnplacedUnits.length > 0) {
+    const matchingUnits: { type: UnitType; faction: import('./types.js').Faction }[] = [];
+    const remainingAll = [...newState.allUnplacedUnits];
+
+    if (card.special === 'ALL_MOVE') {
+      // ALL_MOVE deploys all remaining unplaced units of the card's faction
+      for (let i = remainingAll.length - 1; i >= 0; i--) {
+        if (remainingAll[i].faction === card.faction) {
+          matchingUnits.push(remainingAll[i]);
+          remainingAll.splice(i, 1);
+        }
+      }
+    } else {
+      // Match card's unitTypes to ALL unplaced units of matching faction per type
+      for (const unitType of card.unitTypes) {
+        for (let i = remainingAll.length - 1; i >= 0; i--) {
+          if (remainingAll[i].type === unitType && remainingAll[i].faction === card.faction) {
+            matchingUnits.push(remainingAll[i]);
+            remainingAll.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    if (matchingUnits.length > 0) {
+      // Move matched units to unplacedUnits for deployment
+      newState.allUnplacedUnits = remainingAll;
+      newState.unplacedUnits = matchingUnits;
+      // Set deployment zone from cardDeploymentZones
+      if (newState.cardDeploymentZones) {
+        const zone = newState.cardDeploymentZones[card.faction];
+        newState.deploymentZone = {
+          faction: card.faction,
+          rows: [...zone.rows],
+          cols: zone.cols ? [...zone.cols] : undefined,
+        };
+      }
+      newState.currentPhase = 'deployment';
+      return newState;
+    }
   }
 
   // Check for Ogre Rampage special card
@@ -770,6 +931,88 @@ function endOgreRampage(state: GameState): GameState {
 
 function handlePass(state: GameState): GameState {
   const newState = cloneState(state);
+
+  // If passing during card deployment, return remaining unplaced units to allUnplacedUnits and finish deployment
+  if (newState.currentPhase === 'deployment' && newState.cardDeployment) {
+    if (newState.unplacedUnits && newState.unplacedUnits.length > 0) {
+      newState.allUnplacedUnits = [...(newState.allUnplacedUnits || []), ...newState.unplacedUnits];
+    }
+    newState.unplacedUnits = undefined;
+    newState.deploymentZone = undefined;
+
+    // Same logic as end-of-deployment in handlePlaceUnit: check for pre-existing units
+    const card = newState.currentCard!;
+    const justDeployed = new Set(newState.justDeployedUnitIds || []);
+    let hasPreExistingUnits = false;
+
+    if (card.special === 'ALL_MOVE') {
+      for (const [id, u] of newState.units) {
+        if (u.faction === card.faction && !justDeployed.has(id)) {
+          hasPreExistingUnits = true;
+          break;
+        }
+      }
+    } else {
+      for (const [id, u] of newState.units) {
+        if (u.faction === card.faction &&
+            card.unitTypes.includes(u.definitionType) &&
+            !justDeployed.has(id)) {
+          hasPreExistingUnits = true;
+          break;
+        }
+      }
+    }
+
+    if (hasPreExistingUnits) {
+      if (card.special === 'OGRE_RAMPAGE') {
+        let ogre: import('./types.js').Unit | null = null;
+        for (const [id, u] of newState.units) {
+          if (u.definitionType === 'ogre_champion' && !justDeployed.has(id)) {
+            ogre = u;
+            break;
+          }
+        }
+        if (ogre && ogre.hp > 0) {
+          const ogreSubCardsTotal = ogre.hp;
+          const subDeckRng = createRNG(state.seed + state.turnNumber + 7777);
+          newState.ogreSubDeck = createOgreSubDeck(subDeckRng);
+          newState.ogreSubCardIndex = 0;
+          newState.ogreSubCardsTotal = ogreSubCardsTotal;
+          newState.currentOgreSubCard = null;
+          newState.selectedUnitId = ogre.id;
+          newState.currentPhase = 'ogre_rampage';
+          return newState;
+        }
+      } else if (card.special === 'CANNON_FIRE') {
+        let cannon: import('./types.js').Unit | null = null;
+        for (const [id, u] of newState.units) {
+          if (u.definitionType === 'mighty_cannon' && !justDeployed.has(id)) {
+            cannon = u;
+            break;
+          }
+        }
+        if (cannon && cannon.hp > 0) {
+          newState.selectedUnitId = cannon.id;
+          newState.cannonFireState = null;
+          newState.currentPhase = 'cannon_fire';
+          return newState;
+        }
+      } else {
+        newState.currentPhase = 'activation';
+        return newState;
+      }
+    }
+
+    // No pre-existing units — end turn
+    if (newState.currentCard) {
+      newState.discardPile.push(newState.currentCard);
+      newState.currentCard = null;
+    }
+    newState.selectedUnitId = null;
+    newState.turnNumber++;
+    newState.currentPhase = 'draw_card';
+    return newState;
+  }
 
   // If passing during ogre rampage, end it early
   if (newState.currentPhase === 'ogre_rampage') {
@@ -1259,12 +1502,16 @@ function endCannonFireTurn(state: GameState): GameState {
 function canActivateMore(state: GameState): boolean {
   if (!state.currentCard) return false;
 
+  const justDeployed = state.justDeployedUnitIds ? new Set(state.justDeployedUnitIds) : null;
+
   // Check if there are eligible units that haven't activated
   for (const [id, unit] of state.units) {
     if (unit.faction !== state.currentCard.faction) continue;
     if (unit.hasActivated) continue;
     if (state.activatedUnitIds.includes(id)) continue;
     if (!state.currentCard.unitTypes.includes(unit.definitionType)) continue;
+    // Skip units that were just deployed this turn
+    if (justDeployed?.has(id)) continue;
     return true;
   }
 
@@ -1297,6 +1544,13 @@ function checkWinCondition(state: GameState): Faction | null {
     if (unit.faction === 'imperial') hasImperial = true;
     if (unit.faction === 'chaos') hasChaos = true;
     if (hasImperial && hasChaos) return null; // Both still alive
+  }
+
+  // In card deployment mode, factions with unplaced units are not eliminated
+  if (state.allUnplacedUnits && state.allUnplacedUnits.length > 0) {
+    if (!hasImperial && state.allUnplacedUnits.some(u => u.faction === 'imperial')) hasImperial = true;
+    if (!hasChaos && state.allUnplacedUnits.some(u => u.faction === 'chaos')) hasChaos = true;
+    if (hasImperial && hasChaos) return null;
   }
 
   if (!hasImperial) return 'chaos';
@@ -1332,12 +1586,28 @@ function cloneState(state: GameState): GameState {
       targetCoord: { ...state.cannonFireState.targetCoord },
       misfireTile: state.cannonFireState.misfireTile ? { ...state.cannonFireState.misfireTile } : null,
     } : null,
-    deploymentZone: state.deploymentZone ? { ...state.deploymentZone, rows: [...state.deploymentZone.rows] } : undefined,
+    deploymentZone: state.deploymentZone ? {
+      ...state.deploymentZone,
+      rows: [...state.deploymentZone.rows],
+      cols: state.deploymentZone.cols ? [...state.deploymentZone.cols] : undefined,
+    } : undefined,
     unplacedUnits: state.unplacedUnits ? state.unplacedUnits.map(u => ({ ...u })) : undefined,
     availableTerrain: state.availableTerrain ? { ...state.availableTerrain } : undefined,
     deploymentSides: state.deploymentSides ? {
       imperial: [...state.deploymentSides.imperial],
       chaos: [...state.deploymentSides.chaos],
+    } : undefined,
+    allUnplacedUnits: state.allUnplacedUnits ? state.allUnplacedUnits.map(u => ({ ...u })) : undefined,
+    justDeployedUnitIds: state.justDeployedUnitIds ? [...state.justDeployedUnitIds] : undefined,
+    cardDeploymentZones: state.cardDeploymentZones ? {
+      imperial: {
+        rows: [...state.cardDeploymentZones.imperial.rows],
+        cols: state.cardDeploymentZones.imperial.cols ? [...state.cardDeploymentZones.imperial.cols] : undefined,
+      },
+      chaos: {
+        rows: [...state.cardDeploymentZones.chaos.rows],
+        cols: state.cardDeploymentZones.chaos.cols ? [...state.cardDeploymentZones.chaos.cols] : undefined,
+      },
     } : undefined,
   };
 }

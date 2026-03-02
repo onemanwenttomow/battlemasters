@@ -342,10 +342,15 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
           const deferDamageForId = uiState.showDiceRoll
             ? uiState.combatEffectInfo?.damagedUnitId ?? null
             : null;
-          // Invert facing when sides are swapped (chaos in north / imperial in south)
-          const invertFacing = state.scenarioId === 'battle_of_the_river_tengin'
-            || (state.standardGame === true && state.deploymentSides?.chaos?.includes(0));
-          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, invertFacing);
+          // Determine facing mode
+          let facingMode: 'default' | 'inverted' | 'east-west' = 'default';
+          if (state.scenarioId === 'battle_on_the_road_to_grunberg') {
+            facingMode = 'east-west';
+          } else if (state.scenarioId === 'battle_of_the_river_tengin'
+            || (state.standardGame === true && state.deploymentSides?.chaos?.includes(0))) {
+            facingMode = 'inverted';
+          }
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, facingMode);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
@@ -454,6 +459,7 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             }
             for (const [key, tile] of state.board.tiles) {
               if (state.deploymentZone.rows.includes(tile.coord.row) &&
+                  (!state.deploymentZone.cols || state.deploymentZone.cols.includes(tile.coord.col)) &&
                   tile.terrain !== 'river' && tile.terrain !== 'marsh' &&
                   !occupied.has(key)) {
                 deployHexes.push(tile.coord);

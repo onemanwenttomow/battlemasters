@@ -23,6 +23,8 @@ export interface Scenario {
   winConditions: ScenarioWinCondition[];
   deploymentZone?: { faction: Faction; rows: number[] };
   unplacedUnits?: { type: UnitType; faction: Faction }[];
+  cardDeployment?: boolean;
+  cardDeploymentZones?: { imperial: { rows: number[]; cols?: number[] }; chaos: { rows: number[]; cols?: number[] } };
 }
 
 // ─── Scenario Definitions ───────────────────────────────────────
@@ -180,11 +182,77 @@ const battleOfTheRiverTengin: Scenario = {
   ],
 };
 
+const battleOnTheRoadToGrunburg: Scenario = {
+  id: "battle_on_the_road_to_grunberg",
+  name: "Battle on the Road to Grunberg",
+  description:
+    "Gorefist has pushed deep into the Reikwald and his Chaos horde is now marching along the road to Grunberg. An Imperial force has been sent to block the road and prevent the Chaos army from reaching the city. Both armies arrive on the battlefield at the same time and must deploy their forces as battle cards are drawn.",
+  campaignPoints: 1,
+  imperialArmy: {
+    units: [],
+  },
+  chaosArmy: {
+    units: [],
+  },
+  cardDeployment: true,
+  cardDeploymentZones: {
+    chaos: { rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], cols: [0] },
+    imperial: { rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], cols: [12] },
+  },
+  unplacedUnits: [
+    // Imperial
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "crossbowman", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "lord_knights", faction: "imperial" },
+    { type: "mighty_cannon", faction: "imperial" },
+    // Chaos
+    { type: "goblin", faction: "chaos" },
+    { type: "goblin", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "champions_of_chaos", faction: "chaos" },
+    { type: "ogre_champion", faction: "chaos" },
+  ],
+  boardOverrides: {
+    terrain: [
+      // Remove default tower
+      { coord: { col: 5, row: 2 }, terrain: "plain" },
+      // Remove default marsh
+      { coord: { col: 8, row: 5 }, terrain: "plain" },
+      // Add 3 marsh tiles
+      { coord: { col: 6, row: 5 }, terrain: "marsh" },
+      { coord: { col: 6, row: 9 }, terrain: "marsh" },
+      { coord: { col: 7, row: 11 }, terrain: "marsh" },
+    ],
+    hedges: [],
+  },
+  winConditions: [
+    { type: "elimination", faction: "imperial" },
+    { type: "elimination", faction: "chaos" },
+  ],
+};
+
 // ─── Scenario Registry ──────────────────────────────────────────
 
 export const SCENARIOS: Scenario[] = [
   battleOfTheBorderlands,
   battleOfTheRiverTengin,
+  battleOnTheRoadToGrunburg,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {
@@ -217,7 +285,7 @@ export const CAMPAIGN_SCENARIOS: CampaignScenarioInfo[] = [
     id: "battle_on_the_road_to_grunberg",
     name: "Battle on the Road to Grunberg",
     campaignPoints: 1,
-    available: false,
+    available: true,
   },
   {
     id: "battle_of_the_plains",

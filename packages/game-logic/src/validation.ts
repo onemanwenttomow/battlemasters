@@ -197,6 +197,10 @@ function validatePlaceUnit(state: GameState, unitType: import('./types.js').Unit
     return { valid: false, reason: 'Position is outside the deployment zone' };
   }
 
+  if (state.deploymentZone.cols && !state.deploymentZone.cols.includes(position.col)) {
+    return { valid: false, reason: 'Position is outside the deployment zone' };
+  }
+
   const tile = getTile(state.board, position);
   if (!tile) {
     return { valid: false, reason: 'Position does not exist' };
@@ -254,6 +258,11 @@ function validateSelectUnit(state: GameState, unitId: string): ValidationResult 
   // Check if the unit type matches the card
   if (!state.currentCard.unitTypes.includes(unit.definitionType)) {
     return { valid: false, reason: 'Card does not activate this unit type' };
+  }
+
+  // Just-deployed units can't activate the same turn
+  if (state.justDeployedUnitIds?.includes(unitId)) {
+    return { valid: false, reason: 'Just-deployed units cannot activate this turn' };
   }
 
   return { valid: true };
@@ -419,6 +428,10 @@ function validateEndOgreActivation(state: GameState): ValidationResult {
 }
 
 function validatePass(state: GameState): ValidationResult {
+  // Allow pass during card deployment when player can't place more units
+  if (state.currentPhase === 'deployment' && state.cardDeployment) {
+    return { valid: true };
+  }
   if (state.currentPhase !== 'activation' && state.currentPhase !== 'draw_card' && state.currentPhase !== 'ogre_rampage' && state.currentPhase !== 'cannon_fire') {
     return { valid: false, reason: 'Cannot pass in current phase' };
   }

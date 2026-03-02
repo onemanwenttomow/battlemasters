@@ -265,8 +265,13 @@ export interface GameState {
   // Scenario
   scenarioId?: string;
   // Deployment phase
-  deploymentZone?: { faction: Faction; rows: number[] };
+  deploymentZone?: { faction: Faction; rows: number[]; cols?: number[] };
   unplacedUnits?: { type: UnitType; faction: Faction }[];
+  // Card-based deployment (Road to Grunburg)
+  cardDeployment?: boolean;
+  allUnplacedUnits?: { type: UnitType; faction: Faction }[];
+  justDeployedUnitIds?: string[];
+  cardDeploymentZones?: { imperial: { rows: number[]; cols?: number[] }; chaos: { rows: number[]; cols?: number[] } };
   // Standard Game fields
   standardGame?: boolean;
   terrainPlacerFaction?: Faction;
