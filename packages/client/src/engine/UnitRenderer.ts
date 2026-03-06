@@ -102,7 +102,7 @@ export class UnitRenderer {
     // Add/update units
     for (const [id, unit] of units) {
       // Determine if this unit should be shown as a hidden token
-      const isHiddenFromViewer = unit.hidden && viewingFaction && unit.faction !== viewingFaction;
+      const isHiddenFromViewer = !!(unit.hidden && viewingFaction && unit.faction !== viewingFaction);
       const existing = this.unitMeshes.get(id);
       const wasHidden = existing?.isHiddenToken ?? false;
 
