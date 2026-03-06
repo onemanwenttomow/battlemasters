@@ -46,6 +46,8 @@ interface UIStore {
   ditchPreviewOrientation: number;
   ditchPreviewFortifiedSides: number;
   lastPlacedDitchCoord: { col: number; row: number } | null;
+  deploymentHandoffFaction: 'imperial' | 'chaos' | null;
+  hiddenDeploymentViewingFaction: 'imperial' | 'chaos' | null;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -66,6 +68,8 @@ interface UIStore {
   cycleDitchOrientation: () => void;
   cycleDitchFortifiedSides: () => void;
   setLastPlacedDitchCoord: (coord: { col: number; row: number } | null) => void;
+  setDeploymentHandoffFaction: (faction: 'imperial' | 'chaos' | null) => void;
+  setHiddenDeploymentViewingFaction: (faction: 'imperial' | 'chaos' | null) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -86,6 +90,8 @@ export const useUIStore = create<UIStore>((set) => ({
   ditchPreviewOrientation: 0,
   ditchPreviewFortifiedSides: 4,
   lastPlacedDitchCoord: null,
+  deploymentHandoffFaction: null,
+  hiddenDeploymentViewingFaction: null,
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -110,4 +116,6 @@ export const useUIStore = create<UIStore>((set) => ({
     return { ditchPreviewFortifiedSides: cycle[(idx + 1) % cycle.length] };
   }),
   setLastPlacedDitchCoord: (coord) => set({ lastPlacedDitchCoord: coord }),
+  setDeploymentHandoffFaction: (faction) => set({ deploymentHandoffFaction: faction }),
+  setHiddenDeploymentViewingFaction: (faction) => set({ hiddenDeploymentViewingFaction: faction }),
 }));

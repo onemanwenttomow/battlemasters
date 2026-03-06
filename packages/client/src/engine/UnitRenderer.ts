@@ -37,6 +37,7 @@ interface UnitMeshGroup {
   targetY: number;
   skullTokens: THREE.Mesh[];
   currentSkullCount: number;
+  isHiddenToken?: boolean;
 }
 
 // Shared skull texture (created once, reused)
@@ -72,7 +73,7 @@ export class UnitRenderer {
   private parentGroup: THREE.Group;
   private baseHeight = 0;
   private assetLoader: AssetLoader | null = null;
-  private facingMode: 'default' | 'inverted' | 'east-west' = 'default';
+  private facingMode: 'default' | 'inverted' | 'east-west' | 'west-east' = 'default';
 
   constructor(private scene: THREE.Scene, assetLoader?: AssetLoader) {
     this.parentGroup = new THREE.Group();
@@ -87,7 +88,7 @@ export class UnitRenderer {
   /** Sync rendered units with game state.
    *  deferDamageForId: if set, skull tokens for this unit won't update (used during dice roll display)
    *  facingMode: 'default' (chaos=south, imperial=north), 'inverted' (swapped), 'east-west' (chaos=east, imperial=west) */
-  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null, board?: BoardState, facingMode?: 'default' | 'inverted' | 'east-west') {
+  syncUnits(units: Map<string, Unit>, selectedUnitId: string | null, preserveIds?: Set<string>, deferDamageForId?: string | null, board?: BoardState, facingMode?: 'default' | 'inverted' | 'east-west' | 'west-east', viewingFaction?: Faction | null) {
     this.facingMode = facingMode ?? 'default';
     const currentIds = new Set(units.keys());
 
@@ -100,13 +101,27 @@ export class UnitRenderer {
 
     // Add/update units
     for (const [id, unit] of units) {
+      // Determine if this unit should be shown as a hidden token
+      const isHiddenFromViewer = unit.hidden && viewingFaction && unit.faction !== viewingFaction;
+      const existing = this.unitMeshes.get(id);
+      const wasHidden = existing?.isHiddenToken ?? false;
+
+      // If hidden state changed, recreate the mesh
+      if (existing && isHiddenFromViewer !== wasHidden) {
+        this.removeUnitMesh(id);
+      }
+
       if (!this.unitMeshes.has(id)) {
-        this.createUnitMesh(unit);
+        if (isHiddenFromViewer) {
+          this.createHiddenTokenMesh(unit);
+        } else {
+          this.createUnitMesh(unit);
+        }
       }
       this.updateUnitMesh(unit, id === selectedUnitId, board);
 
       // Sync skull tokens (defer if this unit's damage display is suppressed)
-      if (deferDamageForId !== id) {
+      if (deferDamageForId !== id && !isHiddenFromViewer) {
         this.syncSkullTokens(unit);
       }
     }
@@ -188,9 +203,11 @@ export class UnitRenderer {
       };
       const baseRotation = rotationOverrides[unit.definitionType] ?? 0;
       // Face units toward the opposing side
-      if (this.facingMode === 'east-west') {
-        // Chaos faces east (right), imperial faces west (left)
-        const ewRotation = unit.faction === 'chaos' ? Math.PI / 2 : -Math.PI / 2;
+      if (this.facingMode === 'east-west' || this.facingMode === 'west-east') {
+        // east-west: Chaos faces east, imperial faces west (Grunburg)
+        // west-east: Imperial faces east, chaos faces west (Plains)
+        const imperialFacesEast = this.facingMode === 'west-east';
+        const ewRotation = (unit.faction === 'imperial') === imperialFacesEast ? Math.PI / 2 : -Math.PI / 2;
         model.rotation.y = baseRotation + ewRotation;
       } else {
         const shouldFlip = this.facingMode === 'inverted'
@@ -229,6 +246,58 @@ export class UnitRenderer {
       group, standee, model, base, unitId: unit.id,
       targetX: pos.x, targetZ: pos.z, targetY: this.baseHeight,
       skullTokens: [], currentSkullCount: 0,
+    });
+  }
+
+  private createHiddenTokenMesh(unit: Unit) {
+    const group = new THREE.Group();
+
+    // Faction-colored disc token
+    const tokenGeo = new THREE.CylinderGeometry(0.4, 0.45, 0.2, 16);
+    const tokenColor = unit.faction === 'imperial' ? 0x2244aa : 0xaa2222;
+    const tokenMat = new THREE.MeshStandardMaterial({
+      color: tokenColor,
+      roughness: 0.5,
+      metalness: 0.4,
+    });
+    const base = new THREE.Mesh(tokenGeo, tokenMat);
+    base.position.y = 0.25;
+    base.castShadow = true;
+    base.userData = { unitId: unit.id };
+    group.add(base);
+
+    // Question mark on top
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.font = 'bold 40px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('?', 32, 32);
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const labelGeo = new THREE.PlaneGeometry(0.35, 0.35);
+    const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const label = new THREE.Mesh(labelGeo, labelMat);
+    label.rotation.x = -Math.PI / 2;
+    label.position.y = 0.36;
+    group.add(label);
+
+    group.userData = { unitId: unit.id, faction: unit.faction };
+
+    const pos = hexToWorld(unit.position);
+    group.position.set(pos.x, this.baseHeight, pos.z);
+
+    this.parentGroup.add(group);
+    this.unitMeshes.set(unit.id, {
+      group, standee: null, model: null, base, unitId: unit.id,
+      targetX: pos.x, targetZ: pos.z, targetY: this.baseHeight,
+      skullTokens: [], currentSkullCount: 0,
+      isHiddenToken: true,
     });
   }
 

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
@@ -32,13 +33,23 @@ export function GameHUD() {
   const cycleDitchOrientation = useUIStore((s) => s.cycleDitchOrientation);
   const ditchPreviewFortifiedSides = useUIStore((s) => s.ditchPreviewFortifiedSides);
   const cycleDitchFortifiedSides = useUIStore((s) => s.cycleDitchFortifiedSides);
+  const deploymentHandoffFaction = useUIStore((s) => s.deploymentHandoffFaction);
+  const setDeploymentHandoffFaction = useUIStore((s) => s.setDeploymentHandoffFaction);
+
+  // Show handoff at the very start of hidden deployment (first turn, once only)
+  const initialHandoffShown = useRef(false);
+  if (state?.hiddenDeployment && state.currentPhase === 'deployment'
+    && state.units.size === 0 && !deploymentHandoffFaction && !initialHandoffShown.current) {
+    initialHandoffShown.current = true;
+    setTimeout(() => setDeploymentHandoffFaction(state.deploymentTurn!), 0);
+  }
 
   if (!state) return null;
 
   const factionColor = FACTION_COLORS[state.activeFaction];
   const factionName = FACTION_LABELS[state.activeFaction];
 
-  return (
+  return (<>
     <div style={{
       position: 'absolute',
       top: 0,
@@ -211,7 +222,7 @@ export function GameHUD() {
           pointerEvents: 'auto',
         }}>
           <div style={{ fontSize: '0.85rem', color: '#44cc88', fontWeight: 'bold', marginBottom: 6 }}>
-            {state.standardGame && state.deploymentTurn
+            {(state.standardGame || state.hiddenDeployment) && state.deploymentTurn
               ? `Deploy ${FACTION_LABELS[state.deploymentTurn]} Unit`
               : 'Deploy Units'}
           </div>
@@ -219,14 +230,19 @@ export function GameHUD() {
             Select a unit type, then click a hex in the deployment zone
           </div>
           <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 6 }}>
-            {state.unplacedUnits.length} unit{state.unplacedUnits.length !== 1 ? 's' : ''} remaining
+            {(() => {
+              const count = (state.standardGame || state.hiddenDeployment) && state.deploymentTurn
+                ? state.unplacedUnits.filter(u => u.faction === state.deploymentTurn).length
+                : state.unplacedUnits.length;
+              return `${count} unit${count !== 1 ? 's' : ''} remaining`;
+            })()}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
             {(() => {
               // Group unplaced units by type with counts (filtered by deployment turn in standard game)
               const counts = new Map<string, number>();
               for (const u of state.unplacedUnits!) {
-                if (state.standardGame && state.deploymentTurn && u.faction !== state.deploymentTurn) continue;
+                if ((state.standardGame || state.hiddenDeployment) && state.deploymentTurn && u.faction !== state.deploymentTurn) continue;
                 counts.set(u.type, (counts.get(u.type) || 0) + 1);
               }
               return Array.from(counts.entries()).map(([unitType, count]) => {
@@ -431,7 +447,66 @@ export function GameHUD() {
         )}
       </div>
     </div>
-  );
+
+    {/* Hidden deployment handoff overlay */}
+    {deploymentHandoffFaction && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.9)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          pointerEvents: 'auto',
+        }}>
+          <div style={{
+            fontSize: '1.2rem',
+            color: '#888',
+            marginBottom: 16,
+          }}>
+            Pass the screen to...
+          </div>
+          <div style={{
+            fontSize: '2.5rem',
+            fontWeight: 'bold',
+            color: FACTION_COLORS[deploymentHandoffFaction] || '#fff',
+            marginBottom: 12,
+          }}>
+            {FACTION_LABELS[deploymentHandoffFaction] || deploymentHandoffFaction}
+          </div>
+          <div style={{
+            fontSize: '1rem',
+            color: '#aaa',
+            marginBottom: 32,
+            textAlign: 'center',
+            maxWidth: 360,
+          }}>
+            Place your units facedown in your deployment zone.
+            <br />Your opponent's placements are hidden.
+          </div>
+          <button
+            onClick={() => {
+              setDeploymentHandoffFaction(null);
+              useUIStore.getState().setHiddenDeploymentViewingFaction(null);
+            }}
+            style={{
+              background: 'rgba(68,204,136,0.2)',
+              border: '2px solid #44cc88',
+              color: '#44cc88',
+              padding: '12px 32px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+            }}
+          >
+            Ready
+          </button>
+        </div>
+      )}
+  </>);
 }
 
 function btnStyle(color: string): React.CSSProperties {

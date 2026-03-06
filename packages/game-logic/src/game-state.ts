@@ -154,7 +154,7 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
         const key = coordToKey(override.coord);
         const existing = newTiles.get(key);
         if (existing) {
-          newTiles.set(key, { ...existing, terrain: override.terrain, orientation: override.orientation });
+          newTiles.set(key, { ...existing, terrain: override.terrain, orientation: override.orientation, fortifiedSides: override.fortifiedSides });
         }
       }
       newState.board = { ...newState.board, tiles: newTiles };
@@ -195,6 +195,36 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
     newState.discardPile = [];
     newState.currentPhase = 'draw_card';
     newState.turnNumber = 1;
+    return newState;
+  }
+
+  // Check if scenario uses hidden deployment (both factions place facedown)
+  if (scenario?.hiddenDeployment && scenario.hiddenDeploymentZones && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
+    newState.hiddenDeployment = true;
+    newState.hiddenDeploymentZones = {
+      imperial: {
+        rows: [...scenario.hiddenDeploymentZones.imperial.rows],
+        cols: [...scenario.hiddenDeploymentZones.imperial.cols],
+        additionalHexes: scenario.hiddenDeploymentZones.imperial.additionalHexes?.map(h => ({ ...h })),
+      },
+      chaos: {
+        rows: [...scenario.hiddenDeploymentZones.chaos.rows],
+        cols: [...scenario.hiddenDeploymentZones.chaos.cols],
+        additionalHexes: scenario.hiddenDeploymentZones.chaos.additionalHexes?.map(h => ({ ...h })),
+      },
+    };
+    newState.unplacedUnits = scenario.unplacedUnits.map(u => ({ ...u }));
+    newState.deploymentTurn = 'chaos'; // Chaos places first
+    newState.activeFaction = 'chaos';
+    const chaosZone = newState.hiddenDeploymentZones.chaos;
+    newState.deploymentZone = {
+      faction: 'chaos',
+      rows: chaosZone.rows,
+      cols: chaosZone.cols,
+      additionalHexes: chaosZone.additionalHexes,
+    };
+    newState.currentPhase = 'deployment';
+    newState.turnNumber = 0;
     return newState;
   }
 
@@ -475,6 +505,9 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
 
   // Create the unit at the position
   const unit = createUnit(unitType, position);
+  if (newState.hiddenDeployment) {
+    unit.hidden = true;
+  }
   newState.units.set(unit.id, unit);
 
   // Track just-deployed units in card deployment mode
@@ -571,6 +604,18 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
 
   // Non-card-deployment: if all units placed, transition to draw_card
   if (!newState.cardDeployment && newState.unplacedUnits && newState.unplacedUnits.length === 0) {
+    // Hidden deployment: reveal all hidden units
+    if (newState.hiddenDeployment) {
+      const newUnits = new Map(newState.units);
+      for (const [id, u] of newUnits) {
+        if (u.hidden) {
+          newUnits.set(id, { ...u, hidden: false });
+        }
+      }
+      newState.units = newUnits;
+      newState.hiddenDeployment = false;
+      newState.hiddenDeploymentZones = undefined;
+    }
     const rng = createRNG(state.seed);
     const deck = createBattleDeck();
     newState.battleDeck = shuffleDeck(deck, rng);
@@ -581,6 +626,21 @@ function handlePlaceUnit(state: GameState, unitType: import('./types.js').UnitTy
     newState.unplacedUnits = undefined;
     newState.deploymentTurn = undefined;
     // Keep deploymentSides for facing direction reference during gameplay
+  } else if (newState.hiddenDeployment && newState.deploymentTurn && newState.hiddenDeploymentZones) {
+    // Hidden deployment: alternate turns between factions
+    const otherFaction: Faction = newState.deploymentTurn === 'imperial' ? 'chaos' : 'imperial';
+    const otherHasUnits = newState.unplacedUnits!.some(u => u.faction === otherFaction);
+    const currentHasUnits = newState.unplacedUnits!.some(u => u.faction === newState.deploymentTurn);
+
+    if (otherHasUnits) {
+      newState.deploymentTurn = otherFaction;
+      newState.activeFaction = otherFaction;
+      const zone = newState.hiddenDeploymentZones[otherFaction];
+      newState.deploymentZone = { faction: otherFaction, rows: zone.rows, cols: zone.cols, additionalHexes: zone.additionalHexes };
+    } else if (currentHasUnits) {
+      const zone = newState.hiddenDeploymentZones[newState.deploymentTurn];
+      newState.deploymentZone = { faction: newState.deploymentTurn, rows: zone.rows, cols: zone.cols, additionalHexes: zone.additionalHexes };
+    }
   } else if (newState.standardGame && newState.deploymentTurn && newState.deploymentSides) {
     // Standard game: alternate deployment turns
     const otherFaction: Faction = newState.deploymentTurn === 'imperial' ? 'chaos' : 'imperial';
@@ -1590,6 +1650,20 @@ function cloneState(state: GameState): GameState {
       ...state.deploymentZone,
       rows: [...state.deploymentZone.rows],
       cols: state.deploymentZone.cols ? [...state.deploymentZone.cols] : undefined,
+      additionalHexes: state.deploymentZone.additionalHexes?.map(h => ({ ...h })),
+    } : undefined,
+    hiddenDeployment: state.hiddenDeployment,
+    hiddenDeploymentZones: state.hiddenDeploymentZones ? {
+      imperial: {
+        rows: [...state.hiddenDeploymentZones.imperial.rows],
+        cols: [...state.hiddenDeploymentZones.imperial.cols],
+        additionalHexes: state.hiddenDeploymentZones.imperial.additionalHexes?.map(h => ({ ...h })),
+      },
+      chaos: {
+        rows: [...state.hiddenDeploymentZones.chaos.rows],
+        cols: [...state.hiddenDeploymentZones.chaos.cols],
+        additionalHexes: state.hiddenDeploymentZones.chaos.additionalHexes?.map(h => ({ ...h })),
+      },
     } : undefined,
     unplacedUnits: state.unplacedUnits ? state.unplacedUnits.map(u => ({ ...u })) : undefined,
     availableTerrain: state.availableTerrain ? { ...state.availableTerrain } : undefined,

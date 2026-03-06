@@ -185,19 +185,26 @@ function validatePlaceUnit(state: GameState, unitType: import('./types.js').Unit
     return { valid: false, reason: 'Unit type not available for placement' };
   }
 
-  // Standard game: check deployment turn matches unit faction
-  if (state.standardGame && state.deploymentTurn) {
+  // Standard game or hidden deployment: check deployment turn matches unit faction
+  if ((state.standardGame || state.hiddenDeployment) && state.deploymentTurn) {
     const unitFaction = getUnitDefinition(unitType).faction;
     if (unitFaction !== state.deploymentTurn) {
       return { valid: false, reason: `It is ${state.deploymentTurn}'s turn to deploy` };
     }
   }
 
-  if (!state.deploymentZone || !state.deploymentZone.rows.includes(position.row)) {
+  if (!state.deploymentZone) {
     return { valid: false, reason: 'Position is outside the deployment zone' };
   }
 
-  if (state.deploymentZone.cols && !state.deploymentZone.cols.includes(position.col)) {
+  // Check if position is within the deployment zone (rows + cols, or additionalHexes)
+  const inRowCol = state.deploymentZone.rows.includes(position.row) &&
+    (!state.deploymentZone.cols || state.deploymentZone.cols.includes(position.col));
+  const inAdditional = state.deploymentZone.additionalHexes?.some(
+    h => h.col === position.col && h.row === position.row
+  ) ?? false;
+
+  if (!inRowCol && !inAdditional) {
     return { valid: false, reason: 'Position is outside the deployment zone' };
   }
 

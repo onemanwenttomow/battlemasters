@@ -17,7 +17,7 @@ export interface Scenario {
   imperialArmy: ArmySetup;
   chaosArmy: ArmySetup;
   boardOverrides?: {
-    terrain?: { coord: HexCoord; terrain: TerrainType; orientation?: number }[];
+    terrain?: { coord: HexCoord; terrain: TerrainType; orientation?: number; fortifiedSides?: number }[];
     hedges?: [HexCoord, HexCoord][];
   };
   winConditions: ScenarioWinCondition[];
@@ -25,6 +25,11 @@ export interface Scenario {
   unplacedUnits?: { type: UnitType; faction: Faction }[];
   cardDeployment?: boolean;
   cardDeploymentZones?: { imperial: { rows: number[]; cols?: number[] }; chaos: { rows: number[]; cols?: number[] } };
+  hiddenDeployment?: boolean;
+  hiddenDeploymentZones?: {
+    imperial: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
+    chaos: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
+  };
 }
 
 // ─── Scenario Definitions ───────────────────────────────────────
@@ -247,12 +252,97 @@ const battleOnTheRoadToGrunburg: Scenario = {
   ],
 };
 
+const allRows = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+const battleOfThePlains: Scenario = {
+  id: "battle_of_the_plains",
+  name: "Battle of the Plains",
+  description:
+    "Grunburg has fallen. The gates to the city have been treacherously left open by Chaos spies within the city. An Imperial army has been sent to avenge the loss of the city and Gorefist's Chaos army has marched to meet them. As they deploy for action, a heavy fog rises from the River Reik, completely obscuring the field of battle. As the fog clears, the two armies find themselves facing each other across the plains of Reikwald.",
+  campaignPoints: 2,
+  imperialArmy: {
+    units: [],
+  },
+  chaosArmy: {
+    units: [],
+  },
+  hiddenDeployment: true,
+  hiddenDeploymentZones: {
+    imperial: {
+      rows: allRows,
+      cols: [0, 1, 2, 3, 4],
+      additionalHexes: [
+        { col: 5, row: 1 },
+        { col: 5, row: 5 },
+        { col: 5, row: 7 },
+        { col: 5, row: 9 },
+        { col: 5, row: 11 },
+      ],
+    },
+    chaos: {
+      rows: allRows,
+      cols: [7, 8, 9, 10, 11, 12, 13, 14],
+    },
+  },
+  unplacedUnits: [
+    // Imperial
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "crossbowman", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "lord_knights", faction: "imperial" },
+    { type: "mighty_cannon", faction: "imperial" },
+    // Chaos
+    { type: "goblin", faction: "chaos" },
+    { type: "goblin", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "champions_of_chaos", faction: "chaos" },
+    { type: "ogre_champion", faction: "chaos" },
+  ],
+  boardOverrides: {
+    terrain: [
+      // Move tower from default (5,2) to (6,1)
+      { coord: { col: 5, row: 2 }, terrain: "plain" },
+      { coord: { col: 6, row: 1 }, terrain: "tower" },
+      // Remove default marsh and ditch (not on this map)
+      { coord: { col: 6, row: 5 }, terrain: "plain" },
+      { coord: { col: 8, row: 5 }, terrain: "plain" },
+      // Ditch at (9,7) — open sides facing E (10,7) and NE (9,6)
+      { coord: { col: 9, row: 7 }, terrain: "ditch", orientation: 0, fortifiedSides: 4 },
+      // Ditch at (5,9) — fortified sides facing E (6,9) and NE (5,8)
+      { coord: { col: 5, row: 9 }, terrain: "ditch", orientation: 2, fortifiedSides: 2 },
+      // Ditch at (4,6) — 3 fortified sides, middle open facing NW (4,5)
+      { coord: { col: 4, row: 6 }, terrain: "ditch", orientation: 1, fortifiedSides: 3 },
+    ],
+    hedges: [],
+  },
+  winConditions: [
+    { type: "elimination", faction: "imperial" },
+    { type: "elimination", faction: "chaos" },
+  ],
+};
+
 // ─── Scenario Registry ──────────────────────────────────────────
 
 export const SCENARIOS: Scenario[] = [
   battleOfTheBorderlands,
   battleOfTheRiverTengin,
   battleOnTheRoadToGrunburg,
+  battleOfThePlains,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {
@@ -291,7 +381,7 @@ export const CAMPAIGN_SCENARIOS: CampaignScenarioInfo[] = [
     id: "battle_of_the_plains",
     name: "Battle of the Plains",
     campaignPoints: 2,
-    available: false,
+    available: true,
   },
   {
     id: "battle_of_altdorf",

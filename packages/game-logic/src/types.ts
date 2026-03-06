@@ -70,6 +70,7 @@ export interface Unit {
   hasActivated: boolean;
   hasAttacked: boolean;
   hasMoved: boolean;
+  hidden?: boolean;
 }
 
 // ─── Board ─────────────────────────────────────────────────────
@@ -265,13 +266,19 @@ export interface GameState {
   // Scenario
   scenarioId?: string;
   // Deployment phase
-  deploymentZone?: { faction: Faction; rows: number[]; cols?: number[] };
+  deploymentZone?: { faction: Faction; rows: number[]; cols?: number[]; additionalHexes?: HexCoord[] };
   unplacedUnits?: { type: UnitType; faction: Faction }[];
   // Card-based deployment (Road to Grunburg)
   cardDeployment?: boolean;
   allUnplacedUnits?: { type: UnitType; faction: Faction }[];
   justDeployedUnitIds?: string[];
   cardDeploymentZones?: { imperial: { rows: number[]; cols?: number[] }; chaos: { rows: number[]; cols?: number[] } };
+  // Hidden deployment (Battle of the Plains)
+  hiddenDeployment?: boolean;
+  hiddenDeploymentZones?: {
+    imperial: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
+    chaos: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
+  };
   // Standard Game fields
   standardGame?: boolean;
   terrainPlacerFaction?: Faction;

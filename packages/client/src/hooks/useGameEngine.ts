@@ -182,11 +182,19 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             if (state.currentPhase === 'deployment' && event.hexCoord) {
               const selectedType = useUIStore.getState().selectedDeploymentUnitType;
               if (selectedType) {
+                const prevTurn = state.deploymentTurn;
                 dispatch({ type: 'PLACE_UNIT', unitType: selectedType, position: event.hexCoord });
-                // Check if more of the same type remain; if not, clear selection
                 const nextState = useGameStore.getState().state;
+                // Check if more of the same type remain; if not, clear selection
                 if (nextState?.unplacedUnits && !nextState.unplacedUnits.some(u => u.type === selectedType)) {
                   useUIStore.getState().setSelectedDeploymentUnitType(null);
+                }
+                // Hidden deployment: lock viewing to current player, then show handoff after delay
+                if (nextState?.hiddenDeployment && nextState.deploymentTurn && nextState.deploymentTurn !== prevTurn) {
+                  const nextFaction = nextState.deploymentTurn;
+                  // Immediately lock the view to the player who just placed (prevTurn)
+                  useUIStore.getState().setHiddenDeploymentViewingFaction(prevTurn!);
+                  setTimeout(() => useUIStore.getState().setDeploymentHandoffFaction(nextFaction), 800);
                 }
               }
               break;
@@ -343,14 +351,25 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
             ? uiState.combatEffectInfo?.damagedUnitId ?? null
             : null;
           // Determine facing mode
-          let facingMode: 'default' | 'inverted' | 'east-west' = 'default';
+          let facingMode: 'default' | 'inverted' | 'east-west' | 'west-east' = 'default';
           if (state.scenarioId === 'battle_on_the_road_to_grunberg') {
             facingMode = 'east-west';
+          } else if (state.scenarioId === 'battle_of_the_plains') {
+            facingMode = 'west-east';
           } else if (state.scenarioId === 'battle_of_the_river_tengin'
             || (state.standardGame === true && state.deploymentSides?.chaos?.includes(0))) {
             facingMode = 'inverted';
           }
-          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, facingMode);
+          // During hidden deployment handoff screen, show all units as mystery tokens (use 'none' as viewer)
+          // Otherwise use the locked viewing faction if set, or fall back to deploymentTurn
+          const handoffActive = useUIStore.getState().deploymentHandoffFaction;
+          const viewingOverride = useUIStore.getState().hiddenDeploymentViewingFaction;
+          const viewingFaction = (state.hiddenDeployment && handoffActive)
+            ? ('none' as 'imperial') // no faction matches → all units appear as mystery tokens
+            : (state.hiddenDeployment && viewingOverride)
+              ? viewingOverride
+              : state.deploymentTurn;
+          unitRenderer.syncUnits(state.units, state.selectedUnitId, preserveIds, deferDamageForId, state.board, facingMode, viewingFaction);
           unitRenderer.updateBillboards(scene.camera);
 
           // Update highlights
@@ -458,8 +477,11 @@ export function useGameEngine(containerRef: React.RefObject<HTMLDivElement | nul
               occupied.add(coordToKey(unit.position));
             }
             for (const [key, tile] of state.board.tiles) {
-              if (state.deploymentZone.rows.includes(tile.coord.row) &&
-                  (!state.deploymentZone.cols || state.deploymentZone.cols.includes(tile.coord.col)) &&
+              const inRowCol = state.deploymentZone.rows.includes(tile.coord.row) &&
+                  (!state.deploymentZone.cols || state.deploymentZone.cols.includes(tile.coord.col));
+              const inAdditional = state.deploymentZone.additionalHexes?.some(
+                h => h.col === tile.coord.col && h.row === tile.coord.row) ?? false;
+              if ((inRowCol || inAdditional) &&
                   tile.terrain !== 'river' && tile.terrain !== 'marsh' &&
                   !occupied.has(key)) {
                 deployHexes.push(tile.coord);
