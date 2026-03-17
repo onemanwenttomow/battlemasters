@@ -30,6 +30,7 @@ export interface Scenario {
     imperial: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
     chaos: { rows: number[]; cols: number[]; additionalHexes?: HexCoord[] };
   };
+  deploymentSides?: { imperial: number[]; chaos: number[] };
 }
 
 // ─── Scenario Definitions ───────────────────────────────────────
@@ -336,6 +337,87 @@ const battleOfThePlains: Scenario = {
   ],
 };
 
+const battleOfAltdorf: Scenario = {
+  id: "battle_of_altdorf",
+  name: "Battle of Altdorf",
+  description:
+    "The Campaign has reached its conclusion: Gorefist and his army stand before the gates of Altdorf, the Imperial capital. All of the remaining Imperial forces have been called to the city's defense. The fate of the Empire rests on the outcome of this battle.",
+  campaignPoints: 2,
+  imperialArmy: {
+    units: [],
+  },
+  chaosArmy: {
+    units: [],
+  },
+  deploymentSides: { imperial: [10, 11], chaos: [0, 1, 2, 3] },
+  unplacedUnits: [
+    // Imperial
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "men_at_arms", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "archer", faction: "imperial" },
+    { type: "crossbowman", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "imperial_knights", faction: "imperial" },
+    { type: "lord_knights", faction: "imperial" },
+    { type: "mighty_cannon", faction: "imperial" },
+    // Chaos
+    { type: "goblin", faction: "chaos" },
+    { type: "goblin", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "beastman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "chaos_bowman", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "orc", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "chaos_warrior", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "wolf_rider", faction: "chaos" },
+    { type: "champions_of_chaos", faction: "chaos" },
+    { type: "ogre_champion", faction: "chaos" },
+  ],
+  boardOverrides: {
+    terrain: [
+      // Remove default tower at (5,2)
+      { coord: { col: 5, row: 2 }, terrain: "plain" },
+      // Remove default marsh at (6,5)
+      { coord: { col: 6, row: 5 }, terrain: "plain" },
+      // Remove default ditch at (8,5)
+      { coord: { col: 8, row: 5 }, terrain: "plain" },
+      // Place tower (Altdorf castle) at (3,8)
+      { coord: { col: 3, row: 8 }, terrain: "tower" },
+      // Two forests in upper portion (Chaos side)
+      { coord: { col: 4, row: 9 }, terrain: "forest" },
+      { coord: { col: 7, row: 8 }, terrain: "forest" },
+      // Two marshes
+      { coord: { col: 3, row: 10 }, terrain: "marsh" },
+      { coord: { col: 4, row: 10 }, terrain: "marsh" },
+    ],
+    hedges: [
+      // Wall along the right side of the lower board
+      [
+        { col: 6, row: 9 },
+        { col: 7, row: 9 },
+      ],
+      [
+        { col: 6, row: 10 },
+        { col: 7, row: 10 },
+      ],
+      [
+        { col: 6, row: 11 },
+        { col: 7, row: 11 },
+      ],
+    ],
+  },
+  winConditions: [
+    { type: "elimination", faction: "imperial" },
+    { type: "elimination", faction: "chaos" },
+  ],
+};
+
 // ─── Scenario Registry ──────────────────────────────────────────
 
 export const SCENARIOS: Scenario[] = [
@@ -343,6 +425,7 @@ export const SCENARIOS: Scenario[] = [
   battleOfTheRiverTengin,
   battleOnTheRoadToGrunburg,
   battleOfThePlains,
+  battleOfAltdorf,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {
@@ -387,6 +470,6 @@ export const CAMPAIGN_SCENARIOS: CampaignScenarioInfo[] = [
     id: "battle_of_altdorf",
     name: "Battle of Altdorf",
     campaignPoints: 2,
-    available: false,
+    available: true,
   },
 ];

@@ -228,6 +228,22 @@ function handleStartGame(state: GameState, scenarioId?: string): GameState {
     return newState;
   }
 
+  // Check if scenario uses standard-game-style alternating deployment
+  if (scenario?.deploymentSides && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
+    newState.standardGame = true;
+    newState.deploymentSides = {
+      imperial: [...scenario.deploymentSides.imperial],
+      chaos: [...scenario.deploymentSides.chaos],
+    };
+    newState.unplacedUnits = scenario.unplacedUnits.map(u => ({ ...u }));
+    newState.deploymentTurn = 'chaos';
+    newState.activeFaction = 'chaos';
+    newState.deploymentZone = { faction: 'chaos', rows: newState.deploymentSides.chaos };
+    newState.currentPhase = 'deployment';
+    newState.turnNumber = 0;
+    return newState;
+  }
+
   // Check if scenario has a deployment phase
   if (scenario?.deploymentZone && scenario.unplacedUnits && scenario.unplacedUnits.length > 0) {
     newState.deploymentZone = { ...scenario.deploymentZone };
