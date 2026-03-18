@@ -1,6 +1,7 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
-import { getScenarioById } from '@battle-masters/game-logic';
+import { useCampaignStore } from '../store/campaignStore';
+import { getScenarioById, isCampaignComplete } from '@battle-masters/game-logic';
 
 const FACTION_LABELS = {
   imperial: 'The Imperial Army',
@@ -16,6 +17,10 @@ export function VictoryScreen() {
   const state = useGameStore((s) => s.state);
   const initGame = useGameStore((s) => s.initGame);
   const setScreen = useUIStore((s) => s.setScreen);
+  const isCampaignBattle = useUIStore((s) => s.isCampaignBattle);
+  const setIsCampaignBattle = useUIStore((s) => s.setIsCampaignBattle);
+  const campaignRecordResult = useCampaignStore((s) => s.recordBattleResult);
+  const campaign = useCampaignStore((s) => s.campaign);
 
   if (!state || !state.winner) return null;
 
@@ -39,7 +44,22 @@ export function VictoryScreen() {
     setScreen('game');
   };
 
+  const handleContinueCampaign = () => {
+    campaignRecordResult(state);
+    setIsCampaignBattle(false);
+    // Check if the campaign is now complete (after recording)
+    const updatedCampaign = useCampaignStore.getState().campaign;
+    if (updatedCampaign && isCampaignComplete(updatedCampaign)) {
+      setScreen('campaign_complete');
+    } else {
+      setScreen('campaign_overview');
+    }
+  };
+
   const handleMenu = () => {
+    if (isCampaignBattle) {
+      setIsCampaignBattle(false);
+    }
     setScreen('menu');
   };
 
@@ -73,17 +93,31 @@ export function VictoryScreen() {
         After {state.turnNumber} turns and {state.combatLog.length} battles
       </p>
       <div style={{ display: 'flex', gap: 16 }}>
-        <button onClick={handleRematch} style={{
-          background: color,
-          border: 'none',
-          color: '#fff',
-          padding: '10px 32px',
-          borderRadius: 6,
-          cursor: 'pointer',
-          fontWeight: 'bold',
-        }}>
-          Rematch
-        </button>
+        {isCampaignBattle ? (
+          <button onClick={handleContinueCampaign} style={{
+            background: color,
+            border: 'none',
+            color: '#fff',
+            padding: '10px 32px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+          }}>
+            Continue Campaign
+          </button>
+        ) : (
+          <button onClick={handleRematch} style={{
+            background: color,
+            border: 'none',
+            color: '#fff',
+            padding: '10px 32px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+          }}>
+            Rematch
+          </button>
+        )}
         <button onClick={handleMenu} style={{
           background: 'transparent',
           border: `1px solid ${color}`,

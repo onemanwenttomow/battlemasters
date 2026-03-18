@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { HexCoord, UnitType, PlaceableTerrainType } from '@battle-masters/game-logic';
 
-type Screen = 'menu' | 'game' | 'victory' | 'scenario_select' | 'standard_game_setup';
+type Screen = 'menu' | 'game' | 'victory' | 'scenario_select' | 'standard_game_setup' | 'campaign_overview' | 'campaign_complete';
 
 interface PendingAttack {
   attackerId: string;
@@ -48,6 +48,7 @@ interface UIStore {
   lastPlacedDitchCoord: { col: number; row: number } | null;
   deploymentHandoffFaction: 'imperial' | 'chaos' | null;
   hiddenDeploymentViewingFaction: 'imperial' | 'chaos' | null;
+  isCampaignBattle: boolean;
 
   setScreen: (screen: Screen) => void;
   setInspectedUnit: (unitId: string | null) => void;
@@ -70,6 +71,7 @@ interface UIStore {
   setLastPlacedDitchCoord: (coord: { col: number; row: number } | null) => void;
   setDeploymentHandoffFaction: (faction: 'imperial' | 'chaos' | null) => void;
   setHiddenDeploymentViewingFaction: (faction: 'imperial' | 'chaos' | null) => void;
+  setIsCampaignBattle: (value: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -92,6 +94,7 @@ export const useUIStore = create<UIStore>((set) => ({
   lastPlacedDitchCoord: null,
   deploymentHandoffFaction: null,
   hiddenDeploymentViewingFaction: null,
+  isCampaignBattle: false,
 
   setScreen: (screen) => set({ screen }),
   setInspectedUnit: (unitId) => set({ inspectedUnitId: unitId }),
@@ -118,4 +121,5 @@ export const useUIStore = create<UIStore>((set) => ({
   setLastPlacedDitchCoord: (coord) => set({ lastPlacedDitchCoord: coord }),
   setDeploymentHandoffFaction: (faction) => set({ deploymentHandoffFaction: faction }),
   setHiddenDeploymentViewingFaction: (faction) => set({ hiddenDeploymentViewingFaction: faction }),
+  setIsCampaignBattle: (value) => set({ isCampaignBattle: value }),
 }));

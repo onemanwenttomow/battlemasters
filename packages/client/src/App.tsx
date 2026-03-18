@@ -1,10 +1,13 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useUIStore } from './store/uiStore';
 import { useGameStore } from './store/gameStore';
+import { useCampaignStore } from './store/campaignStore';
 import { useGameEngine } from './hooks/useGameEngine';
 import { MainMenu } from './ui/MainMenu';
 import { ScenarioSelect } from './ui/ScenarioSelect';
 import { StandardGameSetup } from './ui/StandardGameSetup';
+import { CampaignOverview } from './ui/CampaignOverview';
+import { CampaignComplete } from './ui/CampaignComplete';
 import { GameHUD } from './ui/GameHUD';
 import { UnitPanel } from './ui/UnitPanel';
 import { CombatLog } from './ui/CombatLog';
@@ -47,6 +50,11 @@ function GameScreen() {
 
 export default function App() {
   const screen = useUIStore((s) => s.screen);
+  const loadCampaign = useCampaignStore((s) => s.loadFromStorage);
+
+  useEffect(() => {
+    loadCampaign();
+  }, [loadCampaign]);
 
   if (screen === 'menu') {
     return <MainMenu />;
@@ -58,6 +66,14 @@ export default function App() {
 
   if (screen === 'standard_game_setup') {
     return <StandardGameSetup />;
+  }
+
+  if (screen === 'campaign_overview') {
+    return <CampaignOverview />;
+  }
+
+  if (screen === 'campaign_complete') {
+    return <CampaignComplete />;
   }
 
   return <GameScreen />;
