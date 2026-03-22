@@ -15,11 +15,17 @@ import { DiceRoll } from './ui/DiceRoll';
 import { CombatDialog } from './ui/CombatDialog';
 import { CannonFireOverlay } from './ui/CannonFireOverlay';
 import { VictoryScreen } from './ui/VictoryScreen';
+import { ScreenTransition } from './ui/components/ScreenTransition';
 
 function GameScreen() {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useGameEngine(containerRef);
   const state = useGameStore((s) => s.state);
+
+  // Determine faction class for CSS custom properties
+  const factionClass = state
+    ? `faction-${state.activeFaction}`
+    : '';
 
   const handleDiceRollDismiss = useCallback(() => {
     const effectInfo = useUIStore.getState().combatEffectInfo;
@@ -35,7 +41,10 @@ function GameScreen() {
   }, [engineRef]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+    <div
+      className={factionClass}
+      style={{ position: 'relative', width: '100%', height: '100vh' }}
+    >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       <GameHUD />
       <UnitPanel />
@@ -56,25 +65,18 @@ export default function App() {
     loadCampaign();
   }, [loadCampaign]);
 
-  if (screen === 'menu') {
-    return <MainMenu />;
-  }
+  const renderScreen = () => {
+    if (screen === 'menu') return <MainMenu />;
+    if (screen === 'scenario_select') return <ScenarioSelect />;
+    if (screen === 'standard_game_setup') return <StandardGameSetup />;
+    if (screen === 'campaign_overview') return <CampaignOverview />;
+    if (screen === 'campaign_complete') return <CampaignComplete />;
+    return <GameScreen />;
+  };
 
-  if (screen === 'scenario_select') {
-    return <ScenarioSelect />;
-  }
-
-  if (screen === 'standard_game_setup') {
-    return <StandardGameSetup />;
-  }
-
-  if (screen === 'campaign_overview') {
-    return <CampaignOverview />;
-  }
-
-  if (screen === 'campaign_complete') {
-    return <CampaignComplete />;
-  }
-
-  return <GameScreen />;
+  return (
+    <ScreenTransition screenKey={screen}>
+      {renderScreen()}
+    </ScreenTransition>
+  );
 }

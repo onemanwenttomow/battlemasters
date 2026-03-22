@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { DiceScene } from '../engine/DiceScene';
+import { theme } from './theme';
+import { Panel } from './components/Panel';
 import type { DieResult } from '@battle-masters/game-logic';
 
 // Animation phases
@@ -17,8 +19,8 @@ const PAUSE_DURATION = 500;
 const RESULT_DELAY = 400;
 
 const DIE_COLORS: Record<DieResult, string> = {
-  skull: '#ff4444',
-  shield: '#4488ff',
+  skull: theme.colors.danger,
+  shield: theme.colors.info,
   blank: '#888888',
 };
 
@@ -27,42 +29,6 @@ const DIE_IMAGES: Record<DieResult, string> = {
   shield: '/assets/dice/shield.png',
   blank: '/assets/dice/blank.png',
 };
-
-// Inject keyframes once
-let stylesInjected = false;
-function injectStyles() {
-  if (stylesInjected) return;
-  stylesInjected = true;
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes diceResultShake {
-      0%, 100% { transform: none; }
-      10% { transform: translateX(-4px) rotate(-1deg); }
-      20% { transform: translateX(4px) rotate(1deg); }
-      30% { transform: translateX(-3px) rotate(-0.5deg); }
-      40% { transform: translateX(3px) rotate(0.5deg); }
-      50% { transform: translateX(-2px); }
-      60% { transform: translateX(2px); }
-      70% { transform: translateX(-1px); }
-      80% { transform: none; }
-    }
-    @keyframes resultSlam {
-      0% { transform: scale(2.5); opacity: 0; }
-      50% { transform: scale(0.9); opacity: 1; }
-      70% { transform: scale(1.1); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    @keyframes labelFadeIn {
-      0% { opacity: 0; transform: translateY(-8px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes dicePanelEntry {
-      0% { opacity: 0; transform: translateY(10px); }
-      100% { opacity: 1; transform: none; }
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   const state = useGameStore((s) => s.state);
@@ -81,8 +47,6 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const diceSceneRef = useRef<DiceScene | null>(null);
   const timeoutsRef = useRef<number[]>([]);
-
-  useEffect(() => { injectStyles(); }, []);
 
   const clearTimers = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout);
@@ -244,31 +208,32 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
       pointerEvents: 'none',
       zIndex: 101,
     }}>
-      <div
+      <Panel
+        variant="dark"
         style={{
-          background: 'linear-gradient(180deg, rgba(15,15,25,0.97), rgba(5,5,10,0.98))',
-          borderRadius: 16,
           padding: '20px 32px 16px',
-          border: '1px solid rgba(255,255,255,0.12)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
           textAlign: 'center',
           pointerEvents: 'auto',
           cursor: isAnimating ? 'default' : 'pointer',
           minWidth: 320,
           animation: panelAnimation,
+          borderRadius: 16,
         }}
         onClick={handleDismiss}
-        onAnimationEnd={(e) => {
-          if (e.animationName === 'dicePanelEntry') {
-            setEntryDone(true);
-          }
-        }}
       >
+        <div
+          onAnimationEnd={(e) => {
+            if (e.animationName === 'dicePanelEntry') {
+              setEntryDone(true);
+            }
+          }}
+        >
 
         {/* Phase label */}
         <div style={{
-          fontSize: '0.7rem',
-          color: '#666',
+          fontSize: theme.fontSizes.sm,
+          fontFamily: theme.fonts.display,
+          color: theme.colors.textDim,
           marginBottom: 8,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
@@ -279,7 +244,7 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
 
         {/* Attacker results summary — space always reserved to prevent layout shift */}
         <div style={{ visibility: showAttackerSummary ? 'visible' : 'hidden' }}>
-          <DiceSummary label="Attack" dice={attackerResults.length > 0 ? attackerResults : ['blank']} labelColor="#ff8844" highlight="skull" />
+          <DiceSummary label="Attack" dice={attackerResults.length > 0 ? attackerResults : ['blank']} labelColor={theme.colors.warning} highlight="skull" />
         </div>
 
         {/* 3D Dice Canvas */}
@@ -296,7 +261,7 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
 
         {/* Defender results summary — space always reserved to prevent layout shift */}
         <div style={{ visibility: showDefenderSummary ? 'visible' : 'hidden' }}>
-          <DiceSummary label="Defense" dice={defenderResults.length > 0 ? defenderResults : ['blank']} labelColor="#4488ff" highlight="shield" />
+          <DiceSummary label="Defense" dice={defenderResults.length > 0 ? defenderResults : ['blank']} labelColor={theme.colors.info} highlight="shield" />
         </div>
 
         {/* Result — space always reserved to prevent layout shift */}
@@ -312,11 +277,11 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
             <div style={{ animation: phase === 'result' ? 'resultSlam 0.4s ease-out' : 'none' }}>
               <div style={{
                 fontSize: '1.3rem',
-                fontWeight: 'bold',
-                color: event.result.damage > 0 ? '#ff4444' : '#44cc44',
+                fontFamily: theme.fonts.display,
+                color: event.result.damage > 0 ? theme.colors.danger : theme.colors.success,
                 textShadow: event.result.damage > 0
-                  ? '0 0 20px rgba(255,68,68,0.5)'
-                  : '0 0 20px rgba(68,204,68,0.5)',
+                  ? theme.shadows.textGlow('rgba(255,68,68,0.5)')
+                  : theme.shadows.textGlow('rgba(68,204,68,0.5)'),
               }}>
                 {event.result.damage > 0
                   ? `${event.result.damage} Damage${event.result.unitDestroyed ? ' \u2014 Destroyed!' : ''}`
@@ -325,7 +290,8 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
               </div>
               {event.result.damage > 0 && (
                 <div style={{
-                  fontSize: '0.7rem',
+                  fontSize: theme.fontSizes.xs,
+                  fontFamily: theme.fonts.body,
                   color: '#ff8866',
                   marginTop: 2,
                 }}>
@@ -341,14 +307,16 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
         {/* Dismiss hint — space always reserved */}
         <div style={{
           fontSize: '0.6rem',
-          color: '#444',
+          fontFamily: theme.fonts.body,
+          color: theme.colors.textFaint,
           marginTop: 8,
           visibility: phase === 'result' ? 'visible' : 'hidden',
           animation: phase === 'result' ? 'labelFadeIn 0.4s ease-out 0.3s both' : 'none',
         }}>
           Click to dismiss
         </div>
-      </div>
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -371,6 +339,7 @@ function DiceSummary({ label, dice, labelColor, highlight }: {
     }}>
       <span style={{
         fontSize: '0.6rem',
+        fontFamily: theme.fonts.display,
         color: labelColor,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',

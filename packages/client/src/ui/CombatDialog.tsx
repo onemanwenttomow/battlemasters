@@ -9,11 +9,9 @@ import {
   getDitchDefenseModifier,
 } from '@battle-masters/game-logic';
 import type { TerrainType } from '@battle-masters/game-logic';
-
-const FACTION_COLORS = {
-  imperial: '#4488cc',
-  chaos: '#cc4444',
-};
+import { theme, getFactionTheme } from './theme';
+import { MedievalButton } from './components/MedievalButton';
+import { Panel } from './components/Panel';
 
 export function CombatDialog() {
   const state = useGameStore((s) => s.state);
@@ -90,16 +88,20 @@ export function CombatDialog() {
       />
 
       {/* Dialog */}
-      <div style={{
+      <Panel variant="parchment" ornate style={{
         position: 'relative',
-        background: 'rgba(10,10,15,0.95)',
-        borderRadius: 12,
-        padding: '20px 28px',
-        border: '2px solid #555',
+        padding: '24px 32px',
         minWidth: 380,
         animation: 'fadeIn 0.15s ease-out',
       }}>
-        <div style={{ fontSize: '0.85rem', color: '#aaa', textAlign: 'center', marginBottom: 16 }}>
+        <div style={{
+          fontSize: theme.fontSizes.lg,
+          fontFamily: theme.fonts.display,
+          color: theme.colors.gold,
+          textAlign: 'center',
+          marginBottom: 16,
+          letterSpacing: '0.05em',
+        }}>
           Combat
         </div>
 
@@ -114,18 +116,18 @@ export function CombatDialog() {
             terrain={attackerTerrain}
             label="Attacker"
             diceCount={attackDice}
-            diceColor="#ff8844"
+            diceColor={theme.colors.warning}
             modifiers={[
-              ...(chargeBonus > 0 ? [{ label: '+1 Charge', color: '#ff8844' }] : []),
-              ...(ditchAttackModifier < 0 ? [{ label: `${ditchAttackModifier} Ditch`, color: '#cc4444' }] : []),
+              ...(chargeBonus > 0 ? [{ label: '+1 Charge', color: theme.colors.warning }] : []),
+              ...(ditchAttackModifier < 0 ? [{ label: `${ditchAttackModifier} Ditch`, color: theme.colors.danger }] : []),
             ]}
           />
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            fontSize: '1.5rem',
-            color: '#666',
-            fontWeight: 'bold',
+            fontSize: theme.fontSizes.xl,
+            fontFamily: theme.fonts.display,
+            color: theme.colors.textDim,
           }}>
             vs
           </div>
@@ -138,7 +140,7 @@ export function CombatDialog() {
             terrain={defenderTerrain}
             label="Defender"
             diceCount={defenseDice}
-            diceColor="#4488ff"
+            diceColor={theme.colors.info}
             modifiers={[
               ...(ditchDefenseModifier > 0 ? [{ label: `+${ditchDefenseModifier} Ditch`, color: '#44aa44' }] : []),
             ]}
@@ -147,37 +149,14 @@ export function CombatDialog() {
 
         {/* Buttons */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
-          <button
-            onClick={handleCancel}
-            style={{
-              padding: '8px 20px',
-              borderRadius: 6,
-              border: '1px solid #555',
-              background: '#333',
-              color: '#ccc',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-            }}
-          >
+          <MedievalButton variant="ghost" onClick={handleCancel}>
             Cancel
-          </button>
-          <button
-            onClick={handleRollDice}
-            style={{
-              padding: '8px 20px',
-              borderRadius: 6,
-              border: '1px solid #ff8844',
-              background: 'linear-gradient(180deg, #cc5500, #993300)',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-              fontWeight: 'bold',
-            }}
-          >
+          </MedievalButton>
+          <MedievalButton variant="danger" onClick={handleRollDice}>
             Roll Dice
-          </button>
+          </MedievalButton>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }
@@ -194,21 +173,37 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
   diceColor: string;
   modifiers?: { label: string; color: string }[];
 }) {
-  const color = FACTION_COLORS[faction];
+  const factionTheme = getFactionTheme(faction);
 
   return (
     <div style={{ textAlign: 'center', minWidth: 120 }}>
-      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color, marginBottom: 6 }}>{name}</div>
-      <div style={{ fontSize: '0.75rem', color: '#ccc', marginBottom: 2 }}>
-        <span style={{ color: '#888' }}>CV: </span>
-        <span style={{ color: '#ff8844', fontWeight: 'bold' }}>{cv}</span>
+      <div style={{
+        fontSize: theme.fontSizes.xs,
+        fontFamily: theme.fonts.body,
+        color: theme.colors.textMuted,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+      }}>
+        {label}
       </div>
-      <div style={{ fontSize: '0.75rem', color: '#ccc', marginBottom: 2 }}>
-        <span style={{ color: '#888' }}>HP: </span>
-        <span style={{ color: hp < maxHp ? '#ff6666' : '#88cc88', fontWeight: 'bold' }}>{hp}/{maxHp}</span>
+      <div style={{
+        fontSize: theme.fontSizes.md,
+        fontFamily: theme.fonts.display,
+        color: factionTheme.primary,
+        marginBottom: 6,
+      }}>
+        {name}
       </div>
-      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: 4 }}>
+      <div style={{ fontSize: theme.fontSizes.sm, color: theme.colors.text, marginBottom: 2 }}>
+        <span style={{ color: theme.colors.textMuted }}>CV: </span>
+        <span style={{ color: theme.colors.warning, fontWeight: 'bold' }}>{cv}</span>
+      </div>
+      <div style={{ fontSize: theme.fontSizes.sm, color: theme.colors.text, marginBottom: 2 }}>
+        <span style={{ color: theme.colors.textMuted }}>HP: </span>
+        <span style={{ color: hp < maxHp ? '#ff6666' : theme.colors.success, fontWeight: 'bold' }}>{hp}/{maxHp}</span>
+      </div>
+      <div style={{ fontSize: theme.fontSizes.xs, color: theme.colors.textMuted, marginBottom: 4, fontFamily: theme.fonts.body }}>
         {terrain}
       </div>
       {modifiers.length > 0 && (
@@ -222,6 +217,7 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
               border: `1px solid ${mod.color}66`,
               borderRadius: 4,
               padding: '1px 5px',
+              fontFamily: theme.fonts.body,
             }}>
               {mod.label}
             </span>
@@ -235,10 +231,7 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
         justifyContent: 'center',
         gap: 6,
       }}>
-        <div style={{
-          display: 'flex',
-          gap: 3,
-        }}>
+        <div style={{ display: 'flex', gap: 3 }}>
           {Array.from({ length: diceCount }, (_, i) => (
             <div key={i} style={{
               width: 20,
@@ -251,12 +244,13 @@ function UnitInfo({ name, faction, cv, hp, maxHp, terrain, label, diceCount, dic
               justifyContent: 'center',
               fontSize: '0.6rem',
               color: diceColor,
+              fontFamily: theme.fonts.display,
             }}>
               ?
             </div>
           ))}
         </div>
-        <span style={{ fontSize: '0.7rem', color: diceColor, fontWeight: 'bold' }}>
+        <span style={{ fontSize: theme.fontSizes.xs, color: diceColor, fontWeight: 'bold', fontFamily: theme.fonts.body }}>
           {diceCount}d
         </span>
       </div>

@@ -1,0 +1,126 @@
+/* MedievalButton — themed button component */
+
+.btn {
+  font-family: 'MedievalSharp', Georgia, serif;
+  font-weight: normal;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: saturate(0.3);
+}
+
+/* ===== Sizes ===== */
+
+.sm {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  border-radius: 5px;
+}
+
+.md {
+  padding: 8px 20px;
+  font-size: 0.95rem;
+  border-radius: 7px;
+}
+
+.lg {
+  padding: 12px 36px;
+  font-size: 1.15rem;
+  border-radius: 8px;
+}
+
+/* ===== Variant: Primary (gold) ===== */
+
+.primary {
+  background: linear-gradient(160deg, #d4b96a 0%, #c4a35a 40%, #8a7030 100%);
+  color: #1a1a0f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(196, 163, 90, 0.6);
+}
+
+.primary:hover:not(:disabled) {
+  transform: scale(1.04);
+  box-shadow: 0 4px 20px rgba(196, 163, 90, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: linear-gradient(160deg, #dcc578 0%, #c4a35a 40%, #96792e 100%);
+}
+
+/* ===== Variant: Secondary (dark + gold border) ===== */
+
+.secondary {
+  background: linear-gradient(180deg, rgba(30, 28, 22, 0.95) 0%, rgba(20, 18, 14, 0.95) 100%);
+  color: #c4a35a;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  text-shadow: 0 0 8px rgba(196, 163, 90, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.secondary:hover:not(:disabled) {
+  transform: scale(1.03);
+  border-color: rgba(196, 163, 90, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(196, 163, 90, 0.1);
+  background: linear-gradient(180deg, rgba(40, 36, 28, 0.95) 0%, rgba(25, 22, 16, 0.95) 100%);
+}
+
+/* ===== Variant: Danger (red) ===== */
+
+.danger {
+  background: linear-gradient(160deg, #cc5544 0%, #993322 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 100, 80, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.danger:hover:not(:disabled) {
+  transform: scale(1.04);
+  box-shadow: 0 4px 20px rgba(204, 68, 68, 0.3);
+  background: linear-gradient(160deg, #dd6655 0%, #aa3322 100%);
+}
+
+/* ===== Variant: Faction (uses CSS custom properties) ===== */
+
+.faction {
+  background: linear-gradient(180deg, var(--faction-bg) 0%, rgba(0, 0, 0, 0.7) 100%);
+  color: var(--faction-primary, #c4a35a);
+  border: 1px solid var(--faction-border, rgba(196, 163, 90, 0.4));
+  text-shadow: 0 0 8px var(--faction-glow, rgba(196, 163, 90, 0.3));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.faction:hover:not(:disabled) {
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px var(--faction-glow, rgba(196, 163, 90, 0.15));
+  border-color: var(--faction-primary, #c4a35a);
+}
+
+/* ===== Variant: Ghost (transparent) ===== */
+
+.ghost {
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+  box-shadow: none;
+}
+
+.ghost:hover:not(:disabled) {
+  color: #ccc;
+  border-color: #555;
+  background: rgba(255, 255, 255, 0.03);
+}

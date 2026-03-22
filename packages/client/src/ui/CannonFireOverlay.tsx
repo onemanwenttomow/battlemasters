@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
+import { theme } from './theme';
+import { Panel } from './components/Panel';
 import type { Effects } from '../engine/Effects';
 import type { CannonTileType } from '@battle-masters/game-logic';
 
 const TILE_CONFIG: Record<CannonTileType, { label: string; color: string; image: string }> = {
-  flying: { label: 'Flying Cannonball', color: '#4488ff', image: '/assets/cards/cannon/canon-fly.png' },
+  flying: { label: 'Flying Cannonball', color: theme.colors.info, image: '/assets/cards/cannon/canon-fly.png' },
   bouncing: { label: 'Bouncing Cannonball', color: '#ffaa44', image: '/assets/cards/cannon/canon-bounce.png' },
   explosion: { label: 'Explosion!', color: '#ff3333', image: '/assets/cards/cannon/canon-explosion.png' },
 };
@@ -108,16 +110,49 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
     );
   };
 
+  const panelStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    padding: '20px 28px',
+    textAlign: 'center',
+    animation: 'fadeIn 0.2s ease-out',
+    pointerEvents: 'auto',
+    cursor: 'pointer',
+    zIndex: 101,
+    minWidth: 220,
+  };
+
+  const hintStyle: React.CSSProperties = {
+    fontSize: '0.65rem',
+    fontFamily: theme.fonts.body,
+    color: theme.colors.textDim,
+    marginTop: 8,
+  };
+
   // Adjacent shot — show immediate result
   if (cfs.adjacentShot) {
     return (
-      <div style={overlayStyle} onClick={handleDismiss}>
-        <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 8 }}>Adjacent Shot</div>
-        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: cfs.targetDestroyed ? '#44cc44' : '#ff4444', marginBottom: 8 }}>
+      <Panel variant="parchment" style={panelStyle} onClick={handleDismiss}>
+        <div style={{
+          fontSize: theme.fontSizes.sm,
+          fontFamily: theme.fonts.body,
+          color: theme.colors.textMuted,
+          marginBottom: 8,
+        }}>
+          Adjacent Shot
+        </div>
+        <div style={{
+          fontSize: '1.4rem',
+          fontFamily: theme.fonts.display,
+          color: cfs.targetDestroyed ? theme.colors.success : theme.colors.danger,
+          marginBottom: 8,
+        }}>
           {cfs.targetDestroyed ? 'Target Destroyed!' : 'Target Hit! (1 damage)'}
         </div>
         <div style={hintStyle}>Click to dismiss</div>
-      </div>
+      </Panel>
     );
   }
 
@@ -131,21 +166,33 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
       resultColor = '#ff3333';
     } else if (cfs.targetDestroyed) {
       resultText = 'Target Destroyed!';
-      resultColor = '#44cc44';
+      resultColor = theme.colors.success;
     } else {
       resultText = 'Shot Complete';
-      resultColor = '#aaaaaa';
+      resultColor = theme.colors.textMuted;
     }
 
     return (
-      <div style={overlayStyle} onClick={handleDismiss}>
-        <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 8 }}>Cannon Fire</div>
+      <Panel variant="parchment" style={panelStyle} onClick={handleDismiss}>
+        <div style={{
+          fontSize: theme.fontSizes.sm,
+          fontFamily: theme.fonts.display,
+          color: theme.colors.textMuted,
+          marginBottom: 8,
+        }}>
+          Cannon Fire
+        </div>
         {renderTileHistory()}
-        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: resultColor, marginBottom: 4 }}>
+        <div style={{
+          fontSize: '1.4rem',
+          fontFamily: theme.fonts.display,
+          color: resultColor,
+          marginBottom: 4,
+        }}>
           {resultText}
         </div>
         <div style={hintStyle}>Click to dismiss</div>
-      </div>
+      </Panel>
     );
   }
 
@@ -154,9 +201,14 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
   const lastTileConfig = lastTile ? TILE_CONFIG[lastTile.tile.type] : null;
 
   return (
-    <div style={overlayStyle} onClick={handleDrawTile}>
-      <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 8 }}>
-        Cannon Fire — Tile {cfs.placedTiles.length} / {cfs.path.length}
+    <Panel variant="parchment" style={panelStyle} onClick={handleDrawTile}>
+      <div style={{
+        fontSize: theme.fontSizes.sm,
+        fontFamily: theme.fonts.display,
+        color: theme.colors.textMuted,
+        marginBottom: 8,
+      }}>
+        Cannon Fire &mdash; Tile {cfs.placedTiles.length} / {cfs.path.length}
       </div>
 
       {renderTileHistory()}
@@ -164,10 +216,19 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
       {/* Current tile info */}
       {lastTileConfig && lastTile && (
         <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: lastTileConfig.color }}>
+          <div style={{
+            fontSize: theme.fontSizes.lg,
+            fontFamily: theme.fonts.display,
+            color: lastTileConfig.color,
+          }}>
             {lastTileConfig.label}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: 4 }}>
+          <div style={{
+            fontSize: theme.fontSizes.sm,
+            fontFamily: theme.fonts.body,
+            color: theme.colors.textMuted,
+            marginTop: 4,
+          }}>
             {getTileDescription(cfs.placedTiles.length - 1)}
           </div>
         </div>
@@ -176,29 +237,6 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
       <div style={hintStyle}>
         {cfs.placedTiles.length === 0 ? 'Click to draw first tile' : 'Click to draw next tile'}
       </div>
-    </div>
+    </Panel>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  background: 'rgba(0,0,0,0.9)',
-  borderRadius: 12,
-  padding: '16px 24px',
-  border: '2px solid #555',
-  textAlign: 'center',
-  animation: 'fadeIn 0.2s ease-out',
-  pointerEvents: 'auto',
-  cursor: 'pointer',
-  zIndex: 101,
-  minWidth: 200,
-};
-
-const hintStyle: React.CSSProperties = {
-  fontSize: '0.65rem',
-  color: '#555',
-  marginTop: 8,
-};

@@ -1,5 +1,8 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
+import { theme } from './theme';
+import { Panel } from './components/Panel';
+import { MedievalButton } from './components/MedievalButton';
 import type { CombatEvent, MeleeCombatEvent, CannonFireEvent } from '@battle-masters/game-logic';
 
 const DIE_IMAGES: Record<string, string> = {
@@ -15,7 +18,7 @@ const TILE_SYMBOLS: Record<string, string> = {
 };
 
 const TILE_COLORS: Record<string, string> = {
-  flying: '#4488ff',
+  flying: theme.colors.info,
   bouncing: '#ffaa44',
   explosion: '#ff3333',
 };
@@ -23,28 +26,28 @@ const TILE_COLORS: Record<string, string> = {
 function MeleeCombatEntry({ event }: { event: MeleeCombatEvent }) {
   return (
     <>
-      <div style={{ color: '#aaa', fontSize: '0.65rem' }}>
-        <span style={{ color: '#ff8844' }}>{event.attackerName}</span>
+      <div style={{ color: theme.colors.textMuted, fontSize: '0.65rem', fontFamily: theme.fonts.body }}>
+        <span style={{ color: theme.colors.warning }}>{event.attackerName}</span>
         {' vs '}
-        <span style={{ color: '#4488ff' }}>{event.defenderName}</span>
+        <span style={{ color: theme.colors.info }}>{event.defenderName}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-        <span style={{ color: '#ff8844', fontSize: '0.6rem' }}>ATK:</span>
+        <span style={{ color: theme.colors.warning, fontSize: '0.6rem', fontFamily: theme.fonts.body }}>ATK:</span>
         {event.result.attackerRolls.map((r, i) => (
           <img key={`a${i}`} src={DIE_IMAGES[r]} alt={r} style={{ width: 14, height: 14, verticalAlign: 'middle' }} />
         ))}
-        <span style={{ color: '#4488ff', fontSize: '0.6rem', marginLeft: 4 }}>DEF:</span>
+        <span style={{ color: theme.colors.info, fontSize: '0.6rem', marginLeft: 4, fontFamily: theme.fonts.body }}>DEF:</span>
         {event.result.defenderRolls.map((r, i) => (
           <img key={`d${i}`} src={DIE_IMAGES[r]} alt={r} style={{ width: 14, height: 14, verticalAlign: 'middle' }} />
         ))}
       </div>
-      <div>
+      <div style={{ fontFamily: theme.fonts.body }}>
         {event.result.damage > 0 ? (
-          <span style={{ color: '#ff4444' }}>
+          <span style={{ color: theme.colors.danger }}>
             {event.result.damage} damage{event.result.unitDestroyed ? ' - DESTROYED!' : ''}
           </span>
         ) : (
-          <span style={{ color: '#44cc44' }}>Blocked!</span>
+          <span style={{ color: theme.colors.success }}>Blocked!</span>
         )}
       </div>
     </>
@@ -54,12 +57,12 @@ function MeleeCombatEntry({ event }: { event: MeleeCombatEvent }) {
 function CannonFireEntry({ event }: { event: CannonFireEvent }) {
   return (
     <>
-      <div style={{ color: '#aaa', fontSize: '0.65rem' }}>
-        <span style={{ color: '#ff8844' }}>{event.cannonName}</span>
+      <div style={{ color: theme.colors.textMuted, fontSize: '0.65rem', fontFamily: theme.fonts.body }}>
+        <span style={{ color: theme.colors.warning }}>{event.cannonName}</span>
         {event.targetName ? (
-          <>{' \u2192 '}<span style={{ color: '#4488ff' }}>{event.targetName}</span></>
+          <>{' \u2192 '}<span style={{ color: theme.colors.info }}>{event.targetName}</span></>
         ) : (
-          <>{' \u2192 '}<span style={{ color: '#666' }}>empty hex</span></>
+          <>{' \u2192 '}<span style={{ color: theme.colors.textDim }}>empty hex</span></>
         )}
       </div>
       <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
@@ -69,13 +72,13 @@ function CannonFireEntry({ event }: { event: CannonFireEvent }) {
           </span>
         ))}
       </div>
-      <div>
+      <div style={{ fontFamily: theme.fonts.body }}>
         {event.misfire ? (
           <span style={{ color: '#ff3333' }}>MISFIRE!</span>
         ) : event.targetDestroyed ? (
-          <span style={{ color: '#ff4444' }}>Target destroyed!</span>
+          <span style={{ color: theme.colors.danger }}>Target destroyed!</span>
         ) : (
-          <span style={{ color: '#aaa' }}>Shot stopped</span>
+          <span style={{ color: theme.colors.textMuted }}>Shot stopped</span>
         )}
         {event.tileResults.some(tr => tr.unitHit && !tr.destroyed) && (
           <span style={{ color: '#ffaa44', marginLeft: 4 }}>
@@ -101,42 +104,45 @@ export function CombatLog() {
       right: 16,
       maxWidth: 280,
     }}>
-      <button
+      <MedievalButton
+        variant="ghost"
+        size="sm"
         onClick={toggleCombatLog}
-        style={{
-          background: 'rgba(0,0,0,0.7)',
-          border: '1px solid #555',
-          color: '#aaa',
-          padding: '4px 12px',
-          borderRadius: 6,
-          cursor: 'pointer',
-          fontSize: '0.75rem',
-          marginBottom: 4,
-          width: '100%',
-        }}
+        style={{ width: '100%', marginBottom: 4 }}
       >
         Combat Log ({state.combatLog.length}) {showCombatLog ? '\u25BC' : '\u25B2'}
-      </button>
+      </MedievalButton>
 
       {showCombatLog && (
-        <div style={{
-          background: 'rgba(0,0,0,0.85)',
-          borderRadius: 8,
+        <Panel variant="dark" style={{
           padding: 8,
           maxHeight: 200,
           overflowY: 'auto',
-          fontSize: '0.75rem',
+          fontSize: theme.fontSizes.sm,
         }}>
           {state.combatLog.length === 0 && (
-            <div style={{ color: '#666', textAlign: 'center' }}>No combat yet</div>
+            <div style={{
+              color: theme.colors.textDim,
+              textAlign: 'center',
+              fontFamily: theme.fonts.body,
+              fontStyle: 'italic',
+            }}>
+              No combat yet
+            </div>
           )}
           {[...state.combatLog].reverse().slice(0, 10).map((event: CombatEvent, i: number) => (
             <div key={i} style={{
-              borderBottom: '1px solid #222',
+              borderBottom: `1px solid ${theme.colors.border}`,
               padding: '4px 0',
-              color: '#ccc',
+              color: theme.colors.text,
             }}>
-              <div style={{ color: '#888', fontSize: '0.65rem' }}>Turn {event.turnNumber}</div>
+              <div style={{
+                color: theme.colors.textMuted,
+                fontSize: '0.65rem',
+                fontFamily: theme.fonts.body,
+              }}>
+                Turn {event.turnNumber}
+              </div>
               {event.type === 'melee' ? (
                 <MeleeCombatEntry event={event} />
               ) : (
@@ -144,7 +150,7 @@ export function CombatLog() {
               )}
             </div>
           ))}
-        </div>
+        </Panel>
       )}
     </div>
   );

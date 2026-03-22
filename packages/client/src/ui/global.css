@@ -1,0 +1,108 @@
+/* Battle Masters 3 — Global styles */
+
+/* ===== CSS Custom Properties ===== */
+:root {
+  /* Faction-dynamic properties (default: gold/neutral) */
+  --faction-primary: #c4a35a;
+  --faction-dark: #8a7030;
+  --faction-glow: rgba(196, 163, 90, 0.3);
+  --faction-bg: rgba(196, 163, 90, 0.08);
+  --faction-border: rgba(196, 163, 90, 0.4);
+}
+
+.faction-imperial {
+  --faction-primary: #4488cc;
+  --faction-dark: #2a5a8a;
+  --faction-glow: rgba(68, 136, 204, 0.3);
+  --faction-bg: rgba(68, 136, 204, 0.08);
+  --faction-border: rgba(68, 136, 204, 0.4);
+}
+
+.faction-chaos {
+  --faction-primary: #cc4444;
+  --faction-dark: #8a2a2a;
+  --faction-glow: rgba(204, 68, 68, 0.3);
+  --faction-bg: rgba(204, 68, 68, 0.08);
+  --faction-border: rgba(204, 68, 68, 0.4);
+}
+
+/* ===== Keyframes (moved from DiceRoll.tsx runtime injection) ===== */
+
+@keyframes diceResultShake {
+  0%, 100% { transform: none; }
+  10% { transform: translateX(-4px) rotate(-1deg); }
+  20% { transform: translateX(4px) rotate(1deg); }
+  30% { transform: translateX(-3px) rotate(-0.5deg); }
+  40% { transform: translateX(3px) rotate(0.5deg); }
+  50% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  70% { transform: translateX(-1px); }
+  80% { transform: none; }
+}
+
+@keyframes resultSlam {
+  0% { transform: scale(2.5); opacity: 0; }
+  50% { transform: scale(0.9); opacity: 1; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes labelFadeIn {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dicePanelEntry {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ===== Screen Transitions ===== */
+
+@keyframes screenEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes screenExit {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+/* ===== Phase Announcement ===== */
+
+@keyframes phaseEnter {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}

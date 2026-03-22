@@ -1,0 +1,81 @@
+/* Panel component — shared container with medieval theming */
+
+.panel {
+  position: relative;
+  border-radius: 10px;
+}
+
+/* ===== Variant: Dark (glass-dark overlay) ===== */
+.dark {
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 25, 0.95) 0%,
+    rgba(5, 5, 10, 0.97) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ===== Variant: Parchment ===== */
+.parchment {
+  background:
+    /* Subtle noise overlay for texture */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E"),
+    /* Warm parchment gradient */
+    linear-gradient(
+      170deg,
+      rgba(55, 48, 35, 0.97) 0%,
+      rgba(40, 35, 25, 0.98) 40%,
+      rgba(35, 30, 22, 0.98) 100%
+    );
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(196, 163, 90, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Variant: Glass (semi-transparent) ===== */
+.glass {
+  background: rgba(10, 10, 15, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+/* ===== Ornate border decorations ===== */
+.ornate::before,
+.ornate::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--panel-border-color, rgba(196, 163, 90, 0.35));
+  border-style: solid;
+  pointer-events: none;
+}
+
+.ornate::before {
+  top: 4px;
+  left: 4px;
+  border-width: 2px 0 0 2px;
+  border-radius: 4px 0 0 0;
+}
+
+.ornate::after {
+  bottom: 4px;
+  right: 4px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 4px 0;
+}
+
+/* ===== Border color override ===== */
+.borderGold {
+  border-color: rgba(196, 163, 90, 0.4);
+}
+
+.borderFaction {
+  border-color: var(--faction-border, rgba(196, 163, 90, 0.4));
+}

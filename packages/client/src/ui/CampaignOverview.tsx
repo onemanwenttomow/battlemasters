@@ -2,11 +2,9 @@ import { useCampaignStore } from '../store/campaignStore';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { CAMPAIGN_SCENARIOS, getScenarioById } from '@battle-masters/game-logic';
-
-const FACTION_COLORS = {
-  imperial: '#4488cc',
-  chaos: '#cc4444',
-};
+import { theme, getFactionTheme } from './theme';
+import { MedievalButton } from './components/MedievalButton';
+import { Panel } from './components/Panel';
 
 export function CampaignOverview() {
   const campaign = useCampaignStore((s) => s.campaign);
@@ -59,11 +57,12 @@ export function CampaignOverview() {
       background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%)',
     }}>
       <h1 style={{
-        fontSize: '2rem',
-        color: '#c4a35a',
-        fontWeight: 'bold',
+        fontSize: theme.fontSizes['2xl'],
+        fontFamily: theme.fonts.display,
+        color: theme.colors.gold,
+        fontWeight: 'normal',
         marginBottom: 8,
-        textShadow: '0 2px 10px rgba(196,163,90,0.3)',
+        textShadow: theme.shadows.text,
         letterSpacing: '0.1em',
       }}>
         CAMPAIGN
@@ -74,13 +73,14 @@ export function CampaignOverview() {
         display: 'flex',
         gap: 32,
         marginBottom: 24,
-        fontSize: '1rem',
+        fontSize: theme.fontSizes.md,
+        fontFamily: theme.fonts.display,
       }}>
-        <span style={{ color: FACTION_COLORS.imperial }}>
+        <span style={{ color: theme.colors.imperial }}>
           Imperial: {campaign.imperialPoints} pts
         </span>
-        <span style={{ color: '#555' }}>vs</span>
-        <span style={{ color: FACTION_COLORS.chaos }}>
+        <span style={{ color: theme.colors.textDim, fontFamily: theme.fonts.body }}>vs</span>
+        <span style={{ color: theme.colors.chaos }}>
           Chaos: {campaign.chaosPoints} pts
         </span>
       </div>
@@ -100,20 +100,15 @@ export function CampaignOverview() {
           const isUpcoming = index > campaign.currentScenarioIndex;
 
           return (
-            <div
+            <Panel
               key={scenario.id}
+              variant={isCurrent ? 'parchment' : 'dark'}
+              border={isCurrent ? theme.colors.gold : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
                 padding: '10px 16px',
-                borderRadius: 8,
-                background: isCurrent
-                  ? 'rgba(196,163,90,0.15)'
-                  : 'rgba(255,255,255,0.03)',
-                border: isCurrent
-                  ? '2px solid rgba(196,163,90,0.5)'
-                  : '1px solid #222',
               }}
             >
               {/* Status indicator */}
@@ -124,15 +119,16 @@ export function CampaignOverview() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.75rem',
+                fontSize: theme.fontSizes.xs,
+                fontFamily: theme.fonts.display,
                 fontWeight: 'bold',
                 background: result
-                  ? FACTION_COLORS[result.winner]
+                  ? getFactionTheme(result.winner).primary
                   : isCurrent
-                    ? 'rgba(196,163,90,0.3)'
+                    ? theme.colors.goldFaint
                     : '#1a1a1a',
-                color: result || isCurrent ? '#fff' : '#444',
-                border: result ? 'none' : '1px solid #333',
+                color: result || isCurrent ? '#fff' : theme.colors.textFaint,
+                border: result ? 'none' : `1px solid ${theme.colors.border}`,
                 flexShrink: 0,
               }}>
                 {result ? (result.winner === 'imperial' ? 'I' : 'C') : index + 1}
@@ -140,13 +136,18 @@ export function CampaignOverview() {
 
               <div style={{ flex: 1 }}>
                 <div style={{
-                  fontSize: '0.9rem',
+                  fontSize: theme.fontSizes.sm,
+                  fontFamily: isCurrent ? theme.fonts.display : theme.fonts.body,
                   fontWeight: isCurrent ? 'bold' : 'normal',
-                  color: isUpcoming ? '#555' : '#ccc',
+                  color: isUpcoming ? theme.colors.textDim : theme.colors.text,
                 }}>
                   {scenario.name}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#666' }}>
+                <div style={{
+                  fontSize: theme.fontSizes.xs,
+                  fontFamily: theme.fonts.body,
+                  color: theme.colors.textDim,
+                }}>
                   {scenario.campaignPoints} pt{scenario.campaignPoints > 1 ? 's' : ''}
                   {result && ` — ${result.winner === 'imperial' ? 'Imperial' : 'Chaos'} victory (${result.turnCount} turns)`}
                 </div>
@@ -154,92 +155,53 @@ export function CampaignOverview() {
 
               {isCurrent && (
                 <div style={{
-                  fontSize: '0.7rem',
-                  color: '#c4a35a',
-                  fontWeight: 'bold',
+                  fontSize: theme.fontSizes.xs,
+                  fontFamily: theme.fonts.display,
+                  color: theme.colors.gold,
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
                 }}>
                   Next
                 </div>
               )}
-            </div>
+            </Panel>
           );
         })}
       </div>
 
       {/* Current scenario description */}
       {currentScenario && (
-        <div style={{
+        <Panel variant="parchment" style={{
           width: 480,
           maxWidth: '95vw',
-          background: 'rgba(0,0,0,0.4)',
-          border: '1px solid #333',
-          borderRadius: 8,
           padding: '16px 20px',
           marginBottom: 24,
         }}>
           <p style={{
-            color: '#bbb',
-            fontSize: '0.8rem',
+            color: theme.colors.textMuted,
+            fontSize: theme.fontSizes.sm,
+            fontFamily: theme.fonts.body,
             lineHeight: 1.7,
             margin: 0,
+            fontStyle: 'italic',
           }}>
             {currentScenario.description}
           </p>
-        </div>
+        </Panel>
       )}
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button
-          onClick={handleBeginBattle}
-          style={{
-            background: 'linear-gradient(135deg, #c4a35a 0%, #8a7030 100%)',
-            border: 'none',
-            color: '#1a1a0f',
-            padding: '12px 36px',
-            borderRadius: 8,
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            letterSpacing: '0.05em',
-            boxShadow: '0 4px 20px rgba(196,163,90,0.3)',
-          }}
-        >
-          Begin Battle
-        </button>
-      </div>
+      <MedievalButton variant="primary" onClick={handleBeginBattle}>
+        Begin Battle
+      </MedievalButton>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-        <button
-          onClick={handleReset}
-          style={{
-            background: 'transparent',
-            border: '1px solid #444',
-            color: '#666',
-            padding: '6px 16px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-          }}
-        >
+        <MedievalButton variant="ghost" size="sm" onClick={handleReset}>
           Reset Campaign
-        </button>
-        <button
-          onClick={handleBack}
-          style={{
-            background: 'transparent',
-            border: '1px solid #333',
-            color: '#888',
-            padding: '6px 16px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-          }}
-        >
+        </MedievalButton>
+        <MedievalButton variant="ghost" size="sm" onClick={handleBack}>
           Back
-        </button>
+        </MedievalButton>
       </div>
     </div>
   );

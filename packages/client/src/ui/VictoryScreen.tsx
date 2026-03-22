@@ -2,16 +2,9 @@ import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { useCampaignStore } from '../store/campaignStore';
 import { getScenarioById, isCampaignComplete } from '@battle-masters/game-logic';
-
-const FACTION_LABELS = {
-  imperial: 'The Imperial Army',
-  chaos: 'The Chaos Army',
-};
-
-const FACTION_COLORS = {
-  imperial: '#4488cc',
-  chaos: '#cc4444',
-};
+import { theme, getFactionTheme, getFactionLabel } from './theme';
+import { MedievalButton } from './components/MedievalButton';
+import { Panel } from './components/Panel';
 
 export function VictoryScreen() {
   const state = useGameStore((s) => s.state);
@@ -24,8 +17,8 @@ export function VictoryScreen() {
 
   if (!state || !state.winner) return null;
 
-  const color = FACTION_COLORS[state.winner];
-  const name = FACTION_LABELS[state.winner];
+  const factionTheme = getFactionTheme(state.winner);
+  const name = getFactionLabel(state.winner);
 
   // Scenario-specific victory message
   let victoryMessage: string | null = null;
@@ -47,7 +40,6 @@ export function VictoryScreen() {
   const handleContinueCampaign = () => {
     campaignRecordResult(state);
     setIsCampaignBattle(false);
-    // Check if the campaign is now complete (after recording)
     const updatedCampaign = useCampaignStore.getState().campaign;
     if (updatedCampaign && isCampaignComplete(updatedCampaign)) {
       setScreen('campaign_complete');
@@ -71,64 +63,66 @@ export function VictoryScreen() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'rgba(0,0,0,0.85)',
+      background: theme.colors.bgOverlay,
       zIndex: 100,
     }}>
-      <div style={{ fontSize: '1rem', color: '#888', marginBottom: 8 }}>Victory!</div>
-      <h1 style={{
-        fontSize: '2.5rem',
-        color,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        textShadow: `0 0 30px ${color}`,
+      <Panel variant="parchment" ornate style={{
+        padding: '40px 56px',
+        textAlign: 'center',
+        animation: 'fadeIn 0.3s ease-out',
       }}>
-        {name} Wins
-      </h1>
-      {victoryMessage && (
-        <p style={{ color: '#ccc', fontSize: '1.1rem', marginBottom: 8, fontStyle: 'italic' }}>
-          {victoryMessage}
-        </p>
-      )}
-      <p style={{ color: '#888', marginBottom: 32 }}>
-        After {state.turnNumber} turns and {state.combatLog.length} battles
-      </p>
-      <div style={{ display: 'flex', gap: 16 }}>
-        {isCampaignBattle ? (
-          <button onClick={handleContinueCampaign} style={{
-            background: color,
-            border: 'none',
-            color: '#fff',
-            padding: '10px 32px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}>
-            Continue Campaign
-          </button>
-        ) : (
-          <button onClick={handleRematch} style={{
-            background: color,
-            border: 'none',
-            color: '#fff',
-            padding: '10px 32px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}>
-            Rematch
-          </button>
-        )}
-        <button onClick={handleMenu} style={{
-          background: 'transparent',
-          border: `1px solid ${color}`,
-          color,
-          padding: '10px 32px',
-          borderRadius: 6,
-          cursor: 'pointer',
+        <div style={{
+          fontSize: theme.fontSizes.md,
+          fontFamily: theme.fonts.body,
+          color: theme.colors.textMuted,
+          marginBottom: 8,
+          fontStyle: 'italic',
         }}>
-          Main Menu
-        </button>
-      </div>
+          Victory!
+        </div>
+        <h1 style={{
+          fontSize: theme.fontSizes['3xl'],
+          fontFamily: theme.fonts.display,
+          color: factionTheme.primary,
+          fontWeight: 'normal',
+          marginBottom: 16,
+          textShadow: theme.shadows.textGlow(factionTheme.glow),
+        }}>
+          {name} Wins
+        </h1>
+        {victoryMessage && (
+          <p style={{
+            color: theme.colors.text,
+            fontSize: theme.fontSizes.lg,
+            marginBottom: 8,
+            fontStyle: 'italic',
+            fontFamily: theme.fonts.body,
+          }}>
+            {victoryMessage}
+          </p>
+        )}
+        <p style={{
+          color: theme.colors.textDim,
+          marginBottom: 32,
+          fontFamily: theme.fonts.body,
+        }}>
+          After {state.turnNumber} turns and {state.combatLog.length} battles
+        </p>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+          {isCampaignBattle ? (
+            <MedievalButton variant="primary" onClick={handleContinueCampaign}>
+              Continue Campaign
+            </MedievalButton>
+          ) : (
+            <MedievalButton variant="primary" onClick={handleRematch}>
+              Rematch
+            </MedievalButton>
+          )}
+          <MedievalButton variant="ghost" onClick={handleMenu}>
+            Main Menu
+          </MedievalButton>
+        </div>
+      </Panel>
     </div>
   );
 }
