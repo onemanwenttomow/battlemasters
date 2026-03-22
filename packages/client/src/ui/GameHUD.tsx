@@ -76,7 +76,7 @@ export function CurrentCard() {
   const cardFrontSrc = hasCard
     ? state.currentPhase === 'ogre_rampage' && state.currentOgreSubCard
       ? getOgreSubCardImage(state.currentOgreSubCard.type)
-      : getCardImage(state.currentCard)
+      : getCardImage(state.currentCard!)
     : '/assets/cards/card-back.png';
 
   // Show card back in first half, then the real card in second half and idle
@@ -107,7 +107,7 @@ export function CurrentCard() {
           ...(!hasCard && { opacity: 0.7 }),
         }}
       />
-      {hasCard && (
+      {hasCard && state.currentCard && (
         <>
           <div style={{
             fontSize: theme.fontSizes.xs,
