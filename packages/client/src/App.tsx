@@ -8,21 +8,17 @@ import { ScenarioSelect } from './ui/ScenarioSelect';
 import { StandardGameSetup } from './ui/StandardGameSetup';
 import { CampaignOverview } from './ui/CampaignOverview';
 import { CampaignComplete } from './ui/CampaignComplete';
-import { GameHUD } from './ui/GameHUD';
-import { UnitPanel } from './ui/UnitPanel';
-import { CombatLog } from './ui/CombatLog';
-import { DiceRoll } from './ui/DiceRoll';
-import { CombatDialog } from './ui/CombatDialog';
-import { CannonFireOverlay } from './ui/CannonFireOverlay';
+import { GameSidePanel } from './ui/GameSidePanel';
+import { DeploymentHandoff } from './ui/GameHUD';
 import { VictoryScreen } from './ui/VictoryScreen';
 import { ScreenTransition } from './ui/components/ScreenTransition';
+import { theme } from './ui/theme';
 
 function GameScreen() {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useGameEngine(containerRef);
   const state = useGameStore((s) => s.state);
 
-  // Determine faction class for CSS custom properties
   const factionClass = state
     ? `faction-${state.activeFaction}`
     : '';
@@ -45,13 +41,21 @@ function GameScreen() {
       className={factionClass}
       style={{ position: 'relative', width: '100%', height: '100vh' }}
     >
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <GameHUD />
-      <UnitPanel />
-      <CombatLog />
-      <CombatDialog />
-      <DiceRoll onDismiss={handleDiceRollDismiss} />
-      <CannonFireOverlay effects={engineRef.current?.effects ?? null} />
+      <GameSidePanel
+        onDiceRollDismiss={handleDiceRollDismiss}
+        effects={engineRef.current?.effects ?? null}
+      />
+      <div
+        ref={containerRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: theme.layout.panelWidth,
+          right: 0,
+          bottom: 0,
+        }}
+      />
+      <DeploymentHandoff />
       {state?.currentPhase === 'game_over' && <VictoryScreen />}
     </div>
   );

@@ -3,7 +3,6 @@ import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { DiceScene } from '../engine/DiceScene';
 import { theme } from './theme';
-import { Panel } from './components/Panel';
 import type { DieResult } from '@battle-masters/game-logic';
 
 // Animation phases
@@ -196,38 +195,19 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
       : 'none';
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      pointerEvents: 'none',
-      zIndex: 101,
-    }}>
-      <Panel
-        variant="dark"
-        style={{
-          padding: '20px 32px 16px',
-          textAlign: 'center',
-          pointerEvents: 'auto',
-          cursor: isAnimating ? 'default' : 'pointer',
-          minWidth: 320,
-          animation: panelAnimation,
-          borderRadius: 16,
-        }}
-        onClick={handleDismiss}
-      >
-        <div
-          onAnimationEnd={(e) => {
-            if (e.animationName === 'dicePanelEntry') {
-              setEntryDone(true);
-            }
-          }}
-        >
+    <div
+      style={{
+        textAlign: 'center',
+        cursor: isAnimating ? 'default' : 'pointer',
+        animation: panelAnimation,
+      }}
+      onClick={handleDismiss}
+      onAnimationEnd={(e) => {
+        if (e.animationName === 'dicePanelEntry') {
+          setEntryDone(true);
+        }
+      }}
+    >
 
         {/* Phase label */}
         <div style={{
@@ -251,8 +231,8 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
         <div
           ref={canvasContainerRef}
           style={{
-            width: 320,
-            height: 200,
+            width: 268,
+            height: 180,
             margin: '0 auto',
             borderRadius: 8,
             overflow: 'hidden',
@@ -315,8 +295,6 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
         }}>
           Click to dismiss
         </div>
-        </div>
-      </Panel>
     </div>
   );
 }

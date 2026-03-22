@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { theme } from './theme';
-import { Panel } from './components/Panel';
 import type { Effects } from '../engine/Effects';
 import type { CannonTileType } from '@battle-masters/game-logic';
 
@@ -111,17 +110,9 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
   };
 
   const panelStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    padding: '20px 28px',
     textAlign: 'center',
     animation: 'fadeIn 0.2s ease-out',
-    pointerEvents: 'auto',
     cursor: 'pointer',
-    zIndex: 101,
-    minWidth: 220,
   };
 
   const hintStyle: React.CSSProperties = {
@@ -134,7 +125,7 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
   // Adjacent shot — show immediate result
   if (cfs.adjacentShot) {
     return (
-      <Panel variant="parchment" style={panelStyle} onClick={handleDismiss}>
+      <div style={panelStyle} onClick={handleDismiss}>
         <div style={{
           fontSize: theme.fontSizes.sm,
           fontFamily: theme.fonts.body,
@@ -152,7 +143,7 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
           {cfs.targetDestroyed ? 'Target Destroyed!' : 'Target Hit! (1 damage)'}
         </div>
         <div style={hintStyle}>Click to dismiss</div>
-      </Panel>
+      </div>
     );
   }
 
@@ -173,7 +164,7 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
     }
 
     return (
-      <Panel variant="parchment" style={panelStyle} onClick={handleDismiss}>
+      <div style={panelStyle} onClick={handleDismiss}>
         <div style={{
           fontSize: theme.fontSizes.sm,
           fontFamily: theme.fonts.display,
@@ -192,7 +183,7 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
           {resultText}
         </div>
         <div style={hintStyle}>Click to dismiss</div>
-      </Panel>
+      </div>
     );
   }
 
@@ -201,7 +192,7 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
   const lastTileConfig = lastTile ? TILE_CONFIG[lastTile.tile.type] : null;
 
   return (
-    <Panel variant="parchment" style={panelStyle} onClick={handleDrawTile}>
+    <div style={panelStyle} onClick={handleDrawTile}>
       <div style={{
         fontSize: theme.fontSizes.sm,
         fontFamily: theme.fonts.display,
@@ -237,6 +228,6 @@ export function CannonFireOverlay({ effects }: CannonFireOverlayProps) {
       <div style={hintStyle}>
         {cfs.placedTiles.length === 0 ? 'Click to draw first tile' : 'Click to draw next tile'}
       </div>
-    </Panel>
+    </div>
   );
 }

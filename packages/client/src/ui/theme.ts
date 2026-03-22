@@ -88,6 +88,10 @@ export const theme = {
     textGlow: (color: string) => `0 0 10px ${color}, 0 0 20px ${color}`,
   },
 
+  layout: {
+    panelWidth: 300,
+  },
+
   factions: {
     imperial: {
       primary: '#4488cc',

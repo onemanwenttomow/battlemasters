@@ -1,7 +1,6 @@
 import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { theme } from './theme';
-import { Panel } from './components/Panel';
 import { MedievalButton } from './components/MedievalButton';
 import type { CombatEvent, MeleeCombatEvent, CannonFireEvent } from '@battle-masters/game-logic';
 
@@ -98,12 +97,7 @@ export function CombatLog() {
   if (!state) return null;
 
   return (
-    <div style={{
-      position: 'absolute',
-      bottom: 16,
-      right: 16,
-      maxWidth: 280,
-    }}>
+    <div>
       <MedievalButton
         variant="ghost"
         size="sm"
@@ -114,11 +108,13 @@ export function CombatLog() {
       </MedievalButton>
 
       {showCombatLog && (
-        <Panel variant="dark" style={{
+        <div style={{
           padding: 8,
-          maxHeight: 200,
+          maxHeight: 180,
           overflowY: 'auto',
           fontSize: theme.fontSizes.sm,
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: 6,
         }}>
           {state.combatLog.length === 0 && (
             <div style={{
@@ -150,7 +146,7 @@ export function CombatLog() {
               )}
             </div>
           ))}
-        </Panel>
+        </div>
       )}
     </div>
   );

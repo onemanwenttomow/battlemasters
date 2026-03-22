@@ -2,7 +2,6 @@ import { useGameStore } from '../store/gameStore';
 import { useUIStore } from '../store/uiStore';
 import { getUnitDefinition } from '@battle-masters/game-logic';
 import { theme, getFactionTheme } from './theme';
-import { Panel } from './components/Panel';
 
 export function UnitPanel() {
   const state = useGameStore((s) => s.state);
@@ -17,17 +16,11 @@ export function UnitPanel() {
   const factionTheme = getFactionTheme(unit.faction);
 
   return (
-    <Panel
-      variant="dark"
-      border={factionTheme.primary}
-      style={{
-        position: 'absolute',
-        bottom: 16,
-        left: 16,
-        padding: '12px 18px',
-        minWidth: 180,
-      }}
-    >
+    <div style={{
+      padding: '10px 0',
+      borderLeft: `3px solid ${factionTheme.primary}`,
+      paddingLeft: 12,
+    }}>
       <div style={{
         fontSize: theme.fontSizes.md,
         fontFamily: theme.fonts.display,
@@ -92,7 +85,7 @@ export function UnitPanel() {
         {unit.hasAttacked && <span style={{ marginRight: 8 }}>Attacked</span>}
         {unit.hasActivated && <span>Done</span>}
       </div>
-    </Panel>
+    </div>
   );
 }
 
