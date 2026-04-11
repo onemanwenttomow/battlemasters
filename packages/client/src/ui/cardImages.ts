@@ -27,6 +27,21 @@ export function getOgreSubCardImage(type: 'ogre_move' | 'ogre_attack'): string {
     : '/assets/cards/ogre/ogre-attack-card.png';
 }
 
+/** Warm the browser cache for every card image so flips don't show a load delay. */
+export function preloadCardImages(): void {
+  const paths = [
+    CARD_BACK,
+    '/assets/cards/ogre/ogre-move-card.png',
+    '/assets/cards/ogre/ogre-attack-card.png',
+    ...Object.values(IMPERIAL_MAP),
+    ...Object.values(CHAOS_MAP),
+  ];
+  for (const path of paths) {
+    const img = new Image();
+    img.src = path;
+  }
+}
+
 // Keys are sorted unitTypes joined with '+', pipe, then special (empty string if none)
 const IMPERIAL_MAP: Record<string, string> = {
   // ALL_MOVE (whole army)
