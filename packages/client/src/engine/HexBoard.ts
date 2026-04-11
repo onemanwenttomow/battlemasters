@@ -164,37 +164,6 @@ function getRoadOverlay(
   return pickForPair(roadDirs[0], roadDirs[roadDirs.length - 1]);
 }
 
-/**
- * Decorative models to scatter on plain grass tiles.
- * Each entry has a weight controlling relative frequency.
- */
-const SCATTER_DECORATIONS: { model: string; weight: number }[] = [
-  { model: "nature_grass", weight: 6 },
-  { model: "nature_grass_dense", weight: 4 },
-  { model: "nature_flower_red1", weight: 2 },
-  { model: "nature_flower_red2", weight: 2 },
-  { model: "nature_flower_blue1", weight: 2 },
-  { model: "nature_flower_blue2", weight: 2 },
-  { model: "nature_flower_beige1", weight: 2 },
-  { model: "nature_flower_beige2", weight: 2 },
-  { model: "nature_plant_bushSmall", weight: 3 },
-  { model: "nature_plant_flatSmall", weight: 3 },
-  { model: "nature_mushroom_red", weight: 1 },
-  { model: "nature_mushroom_brown", weight: 1 },
-  { model: "nature_rock_small1", weight: 1 },
-  { model: "nature_rock_small2", weight: 1 },
-];
-
-/**
- * Marsh-specific scatter decorations — dense grasses and bushes only.
- */
-const MARSH_SCATTER: { model: string; weight: number }[] = [
-  { model: "nature_grass", weight: 5 },
-  { model: "nature_grass_dense", weight: 8 },
-  { model: "nature_plant_bushSmall", weight: 4 },
-  { model: "nature_plant_flatSmall", weight: 3 },
-];
-
 /** Terrain types that keep their 3D models (others are covered by the board mat) */
 function keepTerrainModel(terrain: TerrainType): boolean {
   return (
@@ -205,45 +174,12 @@ function keepTerrainModel(terrain: TerrainType): boolean {
   );
 }
 
-/** Only plain grass tiles get scatter decorations */
-function canScatter(terrain: TerrainType): boolean {
-  return terrain === "plain";
-}
-
-/**
- * Check that this tile AND all 6 direct neighbors are plain grass (and on-board).
- * This prevents decorations from appearing near roads, rivers, etc.
- */
-function isInteriorPlain(tile: HexTile, board: BoardState): boolean {
-  if (tile.terrain !== "plain") return false;
-
-  const neighbors = getNeighbors(tile.coord);
-  for (let i = 0; i < 6; i++) {
-    const nKey = coordToKey(neighbors[i]);
-    const nTile = board.tiles.get(nKey);
-    if (!nTile || nTile.terrain !== "plain") return false;
-  }
-  return true;
-}
-
-/** Simple seeded PRNG (mulberry32) for deterministic scatter */
-function mulberry32(seed: number): () => number {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export class HexBoard {
   private group: THREE.Group;
   private coordLabelsGroup: THREE.Group;
   private hexMeshes: Map<string, THREE.Mesh> = new Map();
   private terrainModels: Map<string, THREE.Group[]> = new Map();
   private hedgeModels: Map<string, THREE.Group> = new Map();
-  private scatterGroup: THREE.Group;
   private modelScale = 1;
   private modelScaleComputed = false;
   private hexTileTextures: Map<string, THREE.Texture> = new Map();
@@ -263,10 +199,8 @@ export class HexBoard {
     this.group = new THREE.Group();
     this.coordLabelsGroup = new THREE.Group();
     this.coordLabelsGroup.visible = false;
-    this.scatterGroup = new THREE.Group();
     this.scene.add(this.group);
     this.scene.add(this.coordLabelsGroup);
-    this.scene.add(this.scatterGroup);
     this.computeModelScale();
   }
 
@@ -311,8 +245,6 @@ export class HexBoard {
       this.createHexTile(tile, board);
     }
 
-    // Scatter decorations disabled — board mat provides ground detail
-    // this.placeScatterDecorations(board);
     this.placeHedges(board);
     this.snapshotState(board);
   }
@@ -914,163 +846,6 @@ export class HexBoard {
     return group;
   }
 
-  /** Scatter small decorations (flowers, grass, bushes) on eligible tiles */
-  private placeScatterDecorations(board: BoardState) {
-    if (!this.assetLoader || !this.modelScaleComputed) return;
-
-    const available = SCATTER_DECORATIONS.filter((d) =>
-      this.assetLoader!.hasModel(d.model),
-    );
-    if (available.length === 0) return;
-
-    const availableWeight = available.reduce((s, d) => s + d.weight, 0);
-    const rng = mulberry32(42);
-    const decoScale = this.modelScale * 0.18;
-    const placementRadius = HEX_SIZE * 0.35;
-
-    for (const [, tile] of board.tiles) {
-      if (!canScatter(tile.terrain)) continue;
-
-      // ~80% chance per plain tile to get decorations
-      if (rng() > 0.8) continue;
-
-      const count = 3 + Math.floor(rng() * 4); // 3-6 per tile
-      const pos = hexToWorld(tile.coord);
-
-      for (let i = 0; i < count; i++) {
-        // Weighted random pick
-        let roll = rng() * availableWeight;
-        let picked = available[0];
-        for (const d of available) {
-          roll -= d.weight;
-          if (roll <= 0) {
-            picked = d;
-            break;
-          }
-        }
-
-        const clone = this.assetLoader!.getModel(picked.model);
-        if (!clone) continue;
-
-        const angle = rng() * Math.PI * 2;
-        const radius = rng() * placementRadius;
-        const ox = Math.cos(angle) * radius;
-        const oz = Math.sin(angle) * radius;
-
-        clone.scale.setScalar(decoScale);
-        clone.position.set(pos.x + ox, this.tileTopY, pos.z + oz);
-        clone.rotation.y = rng() * Math.PI * 2;
-
-        clone.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            // Nature pack colors wash out under ACES tone mapping —
-            // boost saturation and darken so they read on the board
-            const mats = Array.isArray(child.material)
-              ? child.material
-              : [child.material];
-            for (let mi = 0; mi < mats.length; mi++) {
-              const mat = mats[mi];
-              if (mat instanceof THREE.MeshStandardMaterial) {
-                const cloned = mat.clone();
-                const hsl = { h: 0, s: 0, l: 0 };
-                cloned.color.getHSL(hsl);
-                cloned.color.setHSL(
-                  hsl.h,
-                  Math.min(hsl.s * 2.5, 1.0),
-                  hsl.l * 0.35,
-                );
-                cloned.metalness = 0;
-                cloned.roughness = 0.85;
-                if (Array.isArray(child.material)) {
-                  child.material[mi] = cloned;
-                } else {
-                  child.material = cloned;
-                }
-              }
-            }
-          }
-        });
-
-        this.scatterGroup.add(clone);
-      }
-    }
-
-    // Marsh tiles: dense grass/bush scatter sitting in the lower water basin
-    const marshAvailable = MARSH_SCATTER.filter((d) =>
-      this.assetLoader!.hasModel(d.model),
-    );
-    if (marshAvailable.length > 0) {
-      const marshWeight = marshAvailable.reduce((s, d) => s + d.weight, 0);
-      const marshDecoScale = this.modelScale * 0.28;
-      const marshRadius = HEX_SIZE * 0.85;
-
-      for (const [, tile] of board.tiles) {
-        if (tile.terrain !== "marsh") continue;
-
-        const count = 72 + Math.floor(rng() * 32); // 72-103 per marsh tile
-        const pos = hexToWorld(tile.coord);
-
-        for (let i = 0; i < count; i++) {
-          let roll = rng() * marshWeight;
-          let picked = marshAvailable[0];
-          for (const d of marshAvailable) {
-            roll -= d.weight;
-            if (roll <= 0) {
-              picked = d;
-              break;
-            }
-          }
-
-          const clone = this.assetLoader!.getModel(picked.model);
-          if (!clone) continue;
-
-          const angle = rng() * Math.PI * 2;
-          const radius = rng() * marshRadius;
-          const ox = Math.cos(angle) * radius;
-          const oz = Math.sin(angle) * radius;
-
-          clone.scale.setScalar(marshDecoScale);
-          clone.position.set(pos.x + ox, this.tileTopY * 0.3, pos.z + oz);
-          clone.rotation.y = rng() * Math.PI * 2;
-
-          clone.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-              const mats = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              for (let mi = 0; mi < mats.length; mi++) {
-                const mat = mats[mi];
-                if (mat instanceof THREE.MeshStandardMaterial) {
-                  const cloned = mat.clone();
-                  const hsl = { h: 0, s: 0, l: 0 };
-                  cloned.color.getHSL(hsl);
-                  cloned.color.setHSL(
-                    hsl.h,
-                    Math.min(hsl.s * 2.0, 1.0),
-                    hsl.l * 0.25,
-                  );
-                  cloned.metalness = 0;
-                  cloned.roughness = 0.9;
-                  if (Array.isArray(child.material)) {
-                    child.material[mi] = cloned;
-                  } else {
-                    child.material = cloned;
-                  }
-                }
-              }
-            }
-          });
-
-          this.scatterGroup.add(clone);
-        }
-      }
-    }
-  }
-
   /** Load (or return cached) hex tile texture for a given coordinate */
   private getHexTileTexture(col: number, row: number): THREE.Texture {
     const key = `${col}_${row}`;
@@ -1203,15 +978,6 @@ export class HexBoard {
   }
 
   private clear() {
-    // Dispose scatter decorations
-    while (this.scatterGroup.children.length > 0) {
-      const child = this.scatterGroup.children[0];
-      this.scatterGroup.remove(child);
-      if (child instanceof THREE.Group) {
-        this.disposeGroup(child);
-      }
-    }
-
     // Dispose coord labels
     while (this.coordLabelsGroup.children.length > 0) {
       const sprite = this.coordLabelsGroup.children[0] as THREE.Sprite;
@@ -1263,6 +1029,5 @@ export class HexBoard {
     this.clear();
     this.scene.remove(this.group);
     this.scene.remove(this.coordLabelsGroup);
-    this.scene.remove(this.scatterGroup);
   }
 }
