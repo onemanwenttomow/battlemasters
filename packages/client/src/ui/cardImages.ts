@@ -54,8 +54,8 @@ const IMPERIAL_MAP: Record<string, string> = {
 const CHAOS_MAP: Record<string, string> = {
   // ALL_MOVE (whole army)
   'beastman+champions_of_chaos+chaos_bowman+chaos_warrior+goblin+orc+wolf_rider|ALL_MOVE': '/assets/cards/playing-card-23.png',
-  // Goblin + Champions of Chaos + Beastman
-  'beastman+champions_of_chaos+goblin|': '/assets/cards/playing-card-1.png',
+  // Chaos Bowman + Champions of Chaos
+  'champions_of_chaos+chaos_bowman|': '/assets/cards/playing-card-1.png',
   // Chaos Warrior + Champions of Chaos + Chaos Bowman
   'champions_of_chaos+chaos_bowman+chaos_warrior|': '/assets/cards/playing-card-2.png',
   // Champions of Chaos CHARGE
@@ -76,6 +76,6 @@ const CHAOS_MAP: Record<string, string> = {
   'beastman+goblin+orc|': '/assets/cards/playing-card-10.png',
   // Chaos Warrior + Beastman + Orc + Chaos Bowman + Goblin
   'beastman+chaos_bowman+chaos_warrior+goblin+orc|': '/assets/cards/playing-card-11.png',
-  // Chaos Bowman + Champions of Chaos
-  'champions_of_chaos+chaos_bowman|': '/assets/cards/playing-card-12.png',
+  // Goblin + Champions of Chaos + Beastman
+  'beastman+champions_of_chaos+goblin|': '/assets/cards/playing-card-12.png',
 };
