@@ -46,6 +46,7 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const diceSceneRef = useRef<DiceScene | null>(null);
   const timeoutsRef = useRef<number[]>([]);
+  const initialSelectedUnitRef = useRef<string | null>(null);
 
   const clearTimers = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout);
@@ -58,12 +59,26 @@ export function DiceRoll({ onDismiss }: { onDismiss?: () => void }) {
     return id;
   }, []);
 
-  // Reset entry animation state when dialog opens
+  // Reset entry animation state and capture selection baseline when dialog opens
   useEffect(() => {
     if (showDiceRoll) {
       setEntryDone(false);
+      initialSelectedUnitRef.current = useGameStore.getState().state?.selectedUnitId ?? null;
     }
   }, [showDiceRoll, pendingDiceRoll]);
+
+  // Auto-dismiss when the game advances past combat:
+  //  - phase transitions back to draw_card (turn ended / passed)
+  //  - the player selects a different unit than the one that was active when the popup opened
+  useEffect(() => {
+    if (!showDiceRoll) return;
+    const selChanged =
+      state?.selectedUnitId != null &&
+      state.selectedUnitId !== initialSelectedUnitRef.current;
+    if (state?.currentPhase === 'draw_card' || selChanged) {
+      hideDice();
+    }
+  }, [showDiceRoll, state?.currentPhase, state?.selectedUnitId, hideDice]);
 
   // Create/destroy DiceScene when dialog appears/disappears
   useEffect(() => {

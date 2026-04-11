@@ -43,6 +43,29 @@ interface UnitMeshGroup {
 // Shared skull texture (created once, reused)
 let sharedSkullTexture: THREE.CanvasTexture | null = null;
 
+// Cached placeholder textures keyed by `${faction}|${unitType}`
+const placeholderTextureCache: Map<string, THREE.CanvasTexture> = new Map();
+
+// Shared hidden-token "?" texture
+let sharedHiddenTokenTexture: THREE.CanvasTexture | null = null;
+
+function getHiddenTokenTexture(): THREE.CanvasTexture {
+  if (sharedHiddenTokenTexture) return sharedHiddenTokenTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.font = 'bold 40px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('?', 32, 32);
+  sharedHiddenTokenTexture = new THREE.CanvasTexture(canvas);
+  sharedHiddenTokenTexture.needsUpdate = true;
+  return sharedHiddenTokenTexture;
+}
+
 function getSkullTexture(): THREE.CanvasTexture {
   if (sharedSkullTexture) return sharedSkullTexture;
   const canvas = document.createElement('canvas');
@@ -266,22 +289,9 @@ export class UnitRenderer {
     base.userData = { unitId: unit.id };
     group.add(base);
 
-    // Question mark on top
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, 64, 64);
-    ctx.font = 'bold 40px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('?', 32, 32);
-    const texture = new THREE.CanvasTexture(canvas);
-
+    // Question mark on top (shared cached texture)
     const labelGeo = new THREE.PlaneGeometry(0.35, 0.35);
-    const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const labelMat = new THREE.MeshBasicMaterial({ map: getHiddenTokenTexture(), transparent: true });
     const label = new THREE.Mesh(labelGeo, labelMat);
     label.rotation.x = -Math.PI / 2;
     label.position.y = 0.36;
@@ -302,6 +312,10 @@ export class UnitRenderer {
   }
 
   private createPlaceholderTexture(unit: Unit, name: string): THREE.CanvasTexture {
+    const cacheKey = `${unit.faction}|${unit.definitionType}`;
+    const cached = placeholderTextureCache.get(cacheKey);
+    if (cached) return cached;
+
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 192;
@@ -332,6 +346,7 @@ export class UnitRenderer {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
+    placeholderTextureCache.set(cacheKey, texture);
     return texture;
   }
 
@@ -455,54 +470,46 @@ export class UnitRenderer {
     const meshGroup = this.unitMeshes.get(id);
     if (!meshGroup) return;
 
-    // Dispose skull tokens
-    for (const skull of meshGroup.skullTokens) {
-      skull.geometry.dispose();
-      (skull.material as THREE.Material).dispose();
-    }
-
     this.parentGroup.remove(meshGroup.group);
-    if (meshGroup.standee) {
-      meshGroup.standee.geometry.dispose();
-      (meshGroup.standee.material as THREE.Material).dispose();
-    }
-    if (meshGroup.model) {
-      meshGroup.model.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          if (Array.isArray(child.material)) {
-            child.material.forEach((m) => m.dispose());
-          } else {
-            child.material.dispose();
-          }
+
+    // Dispose every geometry and material in the group hierarchy.
+    // Textures are module-level shared (placeholder/skull/hidden-token) so we
+    // never dispose .map here.
+    meshGroup.group.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material.dispose();
         }
-      });
-    }
-    meshGroup.base.geometry.dispose();
-    (meshGroup.base.material as THREE.Material).dispose();
+      }
+    });
+
     this.unitMeshes.delete(id);
   }
+
+  // Scratch vectors reused per frame to avoid allocation in the hot loop
+  private _camScratch = new THREE.Vector3();
+  private _worldScratch = new THREE.Vector3();
 
   /** Billboard all standees toward camera */
   updateBillboards(camera: THREE.Camera) {
     for (const [, meshGroup] of this.unitMeshes) {
       // Only billboard standees (not 3D models)
       if (meshGroup.standee) {
-        const camPos = camera.position.clone();
-        camPos.y = meshGroup.standee.position.y + meshGroup.group.position.y;
-        const worldPos = new THREE.Vector3();
-        meshGroup.standee.getWorldPosition(worldPos);
-        camPos.y = worldPos.y;
-        meshGroup.standee.lookAt(camPos);
+        meshGroup.standee.getWorldPosition(this._worldScratch);
+        this._camScratch.copy(camera.position);
+        this._camScratch.y = this._worldScratch.y;
+        meshGroup.standee.lookAt(this._camScratch);
       }
 
       // Billboard skull tokens
       for (const skull of meshGroup.skullTokens) {
-        const skullWorld = new THREE.Vector3();
-        skull.getWorldPosition(skullWorld);
-        const skullCamPos = camera.position.clone();
-        skullCamPos.y = skullWorld.y;
-        skull.lookAt(skullCamPos);
+        skull.getWorldPosition(this._worldScratch);
+        this._camScratch.copy(camera.position);
+        this._camScratch.y = this._worldScratch.y;
+        skull.lookAt(this._camScratch);
       }
     }
   }

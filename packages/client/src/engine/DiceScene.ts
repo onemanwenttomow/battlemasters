@@ -94,6 +94,7 @@ export class DiceScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.5;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
     // Scene
@@ -198,8 +199,7 @@ export class DiceScene {
 
   private createDie(xPos: number): PhysicsDie {
     const geometry = new RoundedBoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE, 4, 0.08);
-    const dieMaterials = this.materials.map((m) => m.clone());
-    const mesh = new THREE.Mesh(geometry, dieMaterials);
+    const mesh = new THREE.Mesh(geometry, this.materials);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.scene.add(mesh);
@@ -256,9 +256,6 @@ export class DiceScene {
     for (const die of this.dice) {
       this.scene.remove(die.mesh);
       die.mesh.geometry.dispose();
-      if (Array.isArray(die.mesh.material)) {
-        die.mesh.material.forEach((m) => m.dispose());
-      }
       this.world.removeBody(die.body);
     }
     this.dice = [];
@@ -338,9 +335,6 @@ export class DiceScene {
     for (const die of this.dice) {
       this.scene.remove(die.mesh);
       die.mesh.geometry.dispose();
-      if (Array.isArray(die.mesh.material)) {
-        die.mesh.material.forEach((m) => m.dispose());
-      }
       this.world.removeBody(die.body);
     }
     this.dice = [];
